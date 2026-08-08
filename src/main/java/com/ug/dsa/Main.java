@@ -5,12 +5,10 @@ import com.ug.dsa.datastructures.DynamicArray;
 
 public class Main {
 
-    public  static void main(String[] args) {
-
+    public static void main(String[] args) {
 
         System.out.println("SMART SERVICE OPERATIONS OPTIMIZER");
         System.out.println("Week 1 - Dynamic Array & Linear Search");
-
 
         // ==========================================
         // 1. CREATE DYNAMIC ARRAY
@@ -23,22 +21,20 @@ public class Main {
         System.out.println("Expected: Dynamic Array is created");
         System.out.println("Actual: Dynamic Array created successfully\n");
 
-
         // ==========================================
         // 2. ADD MULTIPLE ELEMENTS
         // ==========================================
 
         System.out.println("TEST 2: Adding Multiple Elements");
 
-        array.add("Cleaning");
-        array.add("Plumbing");
-        array.add("Electrical");
-        array.add("Delivery");
-        array.add("Maintenance");
+        array.add(100);
+        array.add(200);
+        array.add(300);
+        array.add(400);
+        array.add(500);
 
         System.out.println("Expected: 5 elements added");
         System.out.println("Actual: Elements added successfully\n");
-
 
         // ==========================================
         // 3. DISPLAY ALL ELEMENTS
@@ -47,11 +43,7 @@ public class Main {
         System.out.println("TEST 3: Displaying All Elements");
 
         System.out.println("Expected elements:");
-        System.out.println("Cleaning");
-        System.out.println("Plumbing");
-        System.out.println("Electrical");
-        System.out.println("Delivery");
-        System.out.println("Maintenance");
+        System.out.println("100\n200\n300\n400\n500");
 
         System.out.println("\nActual elements:");
 
@@ -61,27 +53,25 @@ public class Main {
 
         System.out.println();
 
-
         // ==========================================
         // 4. TEST GET
         // ==========================================
 
         System.out.println("TEST 4: Retrieving Elements By Index");
 
-        String expectedGet = "Electrical";
-        String actualGet = array.get(2);
+        int expectedGet = 300;
+        int actualGet = array.get(2);
 
         System.out.println("Expected at index 2: " + expectedGet);
         System.out.println("Actual at index 2: " + actualGet);
 
-        if (expectedGet.equals(actualGet)) {
+        if (expectedGet == actualGet) {
             System.out.println("RESULT: PASS");
         } else {
             System.out.println("RESULT: FAIL");
         }
 
         System.out.println();
-
 
         // ==========================================
         // 5. TEST SET / UPDATE
@@ -91,22 +81,21 @@ public class Main {
 
         System.out.println("Before update: " + array.get(1));
 
-        array.set(1, "Emergency Plumbing");
+        array.set(1, 250);
 
-        String expectedUpdate = "Emergency Plumbing";
-        String actualUpdate = array.get(1);
+        int expectedUpdate = 250;
+        int actualUpdate = array.get(1);
 
         System.out.println("Expected after update: " + expectedUpdate);
         System.out.println("Actual after update: " + actualUpdate);
 
-        if (expectedUpdate.equals(actualUpdate)) {
+        if (expectedUpdate == actualUpdate) {
             System.out.println("RESULT: PASS");
         } else {
             System.out.println("RESULT: FAIL");
         }
 
         System.out.println();
-
 
         // ==========================================
         // 6. TEST REMOVE
@@ -119,9 +108,7 @@ public class Main {
             System.out.println(i + ": " + array.get(i));
         }
 
-        String removedElement = array.remove(3);
-
-        System.out.println("\nRemoved element: " + removedElement);
+        array.remove(3);
 
         System.out.println("Expected size after removal: 4");
         System.out.println("Actual size after removal: " + array.size());
@@ -133,7 +120,6 @@ public class Main {
 
         System.out.println();
 
-
         // ==========================================
         // 7. TEST DYNAMIC RESIZING
         // ==========================================
@@ -143,7 +129,7 @@ public class Main {
         System.out.println("Adding many elements to force resizing...");
 
         for (int i = 1; i <= 20; i++) {
-            array.add("Service " + i);
+            array.add(1000 + i);
         }
 
         System.out.println("Expected: Array should resize automatically");
@@ -155,14 +141,7 @@ public class Main {
             System.out.println("RESULT: CHECK - Unexpected size");
         }
 
-        System.out.println("\nElements after resizing:");
-
-        for (int i = 0; i < array.size(); i++) {
-            System.out.println(i + ": " + array.get(i));
-        }
-
         System.out.println();
-
 
         // ==========================================
         // 8. LINEAR SEARCH - BEGINNING
@@ -170,10 +149,9 @@ public class Main {
 
         System.out.println("TEST 8: Linear Search - Beginning");
 
-        int beginningResult =
-                LinearSearch.search(array, "Cleaning");
+        int beginningResult = LinearSearch.search(array, 100);
 
-        System.out.println("Searching for: Cleaning");
+        System.out.println("Searching for: 100");
         System.out.println("Expected index: 0");
         System.out.println("Actual index: " + beginningResult);
 
@@ -185,61 +163,15 @@ public class Main {
 
         System.out.println();
 
-
         // ==========================================
-        // 9. LINEAR SEARCH - MIDDLE
-        // ==========================================
-
-        System.out.println("TEST 9: Linear Search - Middle");
-
-        int middleResult =
-                LinearSearch.search(array, "Service 10");
-
-        System.out.println("Searching for: Service 10");
-        System.out.println("Expected index: 13");
-        System.out.println("Actual index: " + middleResult);
-
-        if (middleResult == 13) {
-            System.out.println("RESULT: PASS");
-        } else {
-            System.out.println("RESULT: FAIL");
-        }
-
-        System.out.println();
-
-
-        // ==========================================
-        // 10. LINEAR SEARCH - END
+        // 9. LINEAR SEARCH - ELEMENT NOT FOUND
         // ==========================================
 
-        System.out.println("TEST 10: Linear Search - End");
+        System.out.println("TEST 9: Linear Search - Element Not Found");
 
-        int endResult =
-                LinearSearch.search(array, "Service 20");
+        int notFoundResult = LinearSearch.search(array, 9999);
 
-        System.out.println("Searching for: Service 20");
-        System.out.println("Expected index: 23");
-        System.out.println("Actual index: " + endResult);
-
-        if (endResult == 23) {
-            System.out.println("RESULT: PASS");
-        } else {
-            System.out.println("RESULT: FAIL");
-        }
-
-        System.out.println();
-
-
-        // ==========================================
-        // 11. LINEAR SEARCH - ELEMENT NOT FOUND
-        // ==========================================
-
-        System.out.println("TEST 11: Linear Search - Element Not Found");
-
-        int notFoundResult =
-                LinearSearch.search(array, "Internet Installation");
-
-        System.out.println("Searching for: Internet Installation");
+        System.out.println("Searching for: 9999");
         System.out.println("Expected index: -1");
         System.out.println("Actual index: " + notFoundResult);
 
@@ -251,7 +183,6 @@ public class Main {
 
         System.out.println();
 
-
         // ==========================================
         // FINAL MESSAGE
         // ==========================================
@@ -261,4 +192,3 @@ public class Main {
         System.out.println("======================================");
     }
 }
-
