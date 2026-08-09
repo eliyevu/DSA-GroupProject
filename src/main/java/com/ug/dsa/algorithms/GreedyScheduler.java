@@ -1,7 +1,7 @@
 package com.ug.dsa.algorithms;
 
 public class GreedyScheduler {
-   
+
     public static class Job {
         public final String id;
         public final int deadline;

@@ -73,7 +73,7 @@ public class WeekOneAlvinDemo {
 
         System.out.println("\nOptimization Results:");
         System.out.println("  Maximum Value Achievable: " + result.getMaxValue());
-        
+
         System.out.print("  Selected Item Indices (0-based): ");
         DynamicArray selected = result.getSelectedIndices();
         for (int i = 0; i < selected.size(); i++) {
