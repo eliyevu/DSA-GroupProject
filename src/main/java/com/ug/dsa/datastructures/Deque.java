@@ -1,3 +1,5 @@
+package com.ug.dsa.datastructures;
+
 public class Deque<T> {
     private static class Node<T> {
         T data;
@@ -163,39 +165,4 @@ public class Deque<T> {
         return sb.toString();
     }
 
-    /**
-     * Simple demo / manual smoke test.
-     * Run this directly (java Deque) to see the deque in action.
-     */
-    public static void main(String[] args) {
-        Deque<String> deque = new Deque<>();
-
-        System.out.println("Is empty? " + deque.isEmpty()); // true
-
-        deque.addRear("Request-B");
-        deque.addRear("Request-C");
-        deque.addFront("Request-A"); // urgent request jumps to the front
-        System.out.println("After adds: " + deque);          // [Request-A, Request-B, Request-C]
-        System.out.println("Front: " + deque.peekFront());    // Request-A
-        System.out.println("Rear: " + deque.peekRear());      // Request-C
-        System.out.println("Size: " + deque.size());          // 3
-
-        String removedFront = deque.removeFront();
-        System.out.println("Removed from front: " + removedFront); // Request-A
-        System.out.println("After removeFront: " + deque);          // [Request-B, Request-C]
-
-        String removedRear = deque.removeRear();
-        System.out.println("Removed from rear: " + removedRear); // Request-C
-        System.out.println("After removeRear: " + deque);        // [Request-B]
-
-        deque.removeFront();
-        System.out.println("Is empty? " + deque.isEmpty()); // true
-
-        // Edge case: operating on an empty deque should throw, not crash silently.
-        try {
-            deque.removeFront();
-        } catch (java.util.NoSuchElementException e) {
-            System.out.println("Caught expected exception: " + e.getMessage());
-        }
-    }
 }
