@@ -1,10 +1,5 @@
 package com.ug.dsa.datastructures;
 
-/**
- * Custom implementation of a Graph Data Structure.
- * Maintains both Adjacency Matrix and Adjacency List representations simultaneously,
- * supporting weighted/unweighted and directed/undirected graphs.
- */
 public class Graph {
 
     private int numVertices;
@@ -18,21 +13,10 @@ public class Graph {
     @SuppressWarnings("unchecked")
     private LinkedList<Edge>[] adjList;
 
-    /**
-     * Constructs a Graph with an initial number of vertices (undirected by default).
-     *
-     * @param numVertices initial number of vertices
-     */
     public Graph(int numVertices) {
         this(numVertices, false);
     }
 
-    /**
-     * Constructs a Graph with an initial number of vertices and directed flag.
-     *
-     * @param numVertices initial number of vertices
-     * @param isDirected   true if graph is directed, false if undirected
-     */
     @SuppressWarnings("unchecked")
     public Graph(int numVertices, boolean isDirected) {
         if (numVertices < 0) {
@@ -50,12 +34,7 @@ public class Graph {
         }
     }
 
-    /**
-     * Adds a new vertex to the graph dynamically.
-     * Expands both Adjacency Matrix and Adjacency List capacities.
-     *
-     * @return index of the newly added vertex
-     */
+
     @SuppressWarnings("unchecked")
     public int addVertex() {
         int newNumVertices = numVertices + 1;
@@ -80,24 +59,10 @@ public class Graph {
         return newVertexIndex;
     }
 
-    /**
-     * Adds an unweighted edge (weight = 1) between source and destination vertices.
-     *
-     * @param src  source vertex
-     * @param dest destination vertex
-     */
     public void addEdge(int src, int dest) {
         addEdge(src, dest, 1);
     }
 
-    /**
-     * Adds a weighted edge between source and destination vertices.
-     * Updates both Adjacency Matrix and Adjacency List.
-     *
-     * @param src    source vertex
-     * @param dest   destination vertex
-     * @param weight weight of the edge
-     */
     public void addEdge(int src, int dest, int weight) {
         validateVertex(src);
         validateVertex(dest);
@@ -130,13 +95,7 @@ public class Graph {
         }
     }
 
-    /**
-     * Removes an edge between source and destination vertices.
-     *
-     * @param src  source vertex
-     * @param dest destination vertex
-     * @return true if edge was successfully removed, false if edge didn't exist
-     */
+
     public boolean removeEdge(int src, int dest) {
         validateVertex(src);
         validateVertex(dest);
@@ -157,12 +116,7 @@ public class Graph {
         return true;
     }
 
-    /**
-     * Removes a vertex from the graph and all incident edges.
-     * Shifts vertex indices beyond v down by 1.
-     *
-     * @param v vertex index to remove
-     */
+
     @SuppressWarnings("unchecked")
     public void removeVertex(int v) {
         validateVertex(v);
@@ -209,12 +163,7 @@ public class Graph {
         this.numVertices = newNumVertices;
     }
 
-    /**
-     * Returns an array of edges connected to vertex v.
-     *
-     * @param v vertex index
-     * @return Edge array of incident edges
-     */
+
     public Edge[] getNeighbours(int v) {
         validateVertex(v);
         LinkedList<Edge> list = adjList[v];
@@ -225,12 +174,7 @@ public class Graph {
         return neighbours;
     }
 
-    /**
-     * Returns all unique edges in the graph.
-     * For undirected graphs, each edge (u, v) is included once with u < v.
-     *
-     * @return Edge array of all graph edges
-     */
+
     public Edge[] getAllEdges() {
         Edge[] allEdgesTemp = new Edge[numEdges];
         int count = 0;
@@ -256,11 +200,7 @@ public class Graph {
         return result;
     }
 
-    /**
-     * Returns a deep copy of the 2D Adjacency Matrix representation.
-     *
-     * @return 2D integer array representing the adjacency matrix
-     */
+
     public int[][] getAdjacencyMatrix() {
         int[][] copy = new int[numVertices][numVertices];
         for (int i = 0; i < numVertices; i++) {
@@ -269,11 +209,7 @@ public class Graph {
         return copy;
     }
 
-    /**
-     * Returns the Adjacency List array.
-     *
-     * @return array of LinkedList<Edge> representations
-     */
+
     public LinkedList<Edge>[] getAdjacencyList() {
         return adjList;
     }
