@@ -1,7 +1,5 @@
 package com.ug.dsa;
 
-import com.ug.dsa.algorithms.LinearSearch;
-import com.ug.dsa.datastructures.DynamicArray;
 
 public class Main {
 

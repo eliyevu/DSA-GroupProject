@@ -1,4 +1,3 @@
-```java
 package com.ug.dsa.datastructures;
 
 public class DynamicArray<T> {
@@ -147,4 +146,3 @@ public class DynamicArray<T> {
         return sb.toString();
     }
 }
-```
