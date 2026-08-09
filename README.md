@@ -24,7 +24,7 @@ DSA-GroupProject
 │           └── com/
 │               └── ug/
 │                   └── dsa/
-│                       ├── Main.java
+│                       ├── com.ug.dsa.Main.java
 │                       ├── models/
 │                       ├── database/
 │                       ├── services/

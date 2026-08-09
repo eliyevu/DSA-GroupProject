@@ -1,30 +1,25 @@
-/**
- * Generic implementation of the Insertion Sort algorithm from scratch.
- */
+package com.ug.dsa.algorithms;
+
+import com.ug.dsa.datastructures.DynamicArray;
+
 public class InsertionSort {
 
-    /**
-     * Sorts an array of comparable elements in ascending order.
-     *
-     * @param <T>   the type of elements in the array
-     * @param array the array to be sorted
-     */
-    public static <T extends Comparable<T>> void sort(T[] array) {
-        if (array == null || array.length <= 1) {
+    public static <T extends Comparable<T>> void sort(DynamicArray<T> array) {
+        if (array == null || array.size() <= 1) {
             return;
         }
 
-        for (int i = 1; i < array.length; i++) {
-            T key = array[i];
+        for (int i = 1; i < array.size(); i++) {
+            T key = array.get(i);
             int j = i - 1;
 
-            // Shift elements of array[0..i-1] that are greater than key
+            // Shift elements that are greater than key
             // to one position ahead of their current position
-            while (j >= 0 && array[j].compareTo(key) > 0) {
-                array[j + 1] = array[j];
+            while (j >= 0 && array.get(j).compareTo(key) > 0) {
+                array.set(j + 1, array.get(j));
                 j--;
             }
-            array[j + 1] = key;
+            array.set(j + 1, key);
         }
     }
 }

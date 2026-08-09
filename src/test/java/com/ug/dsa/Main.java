@@ -1,9 +1,14 @@
+package com.ug.dsa;
+
+import com.ug.dsa.algorithms.InsertionSort;
+import com.ug.dsa.datastructures.Queue;
+
 import java.util.Arrays;
 
 public class Main {
     public static void main(String[] args) {
         System.out.println("=== Testing Custom Queue ===");
-        CustomQueue<String> taskQueue = new CustomQueue<>();
+        Queue<String> taskQueue = new Queue<>();
 
         System.out.println("Is queue empty? " + taskQueue.isEmpty());
 
