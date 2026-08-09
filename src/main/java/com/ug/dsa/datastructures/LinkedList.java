@@ -1,6 +1,6 @@
 package com.ug.dsa.datastructures;
 
-public class LinkedList<T extends Comparable<T>> {
+public class LinkedList<T> {
 
     private static class Node<T> {
         T data;

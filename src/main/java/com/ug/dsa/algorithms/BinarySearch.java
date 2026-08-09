@@ -1,18 +1,18 @@
 package com.ug.dsa.algorithms;
 
-import com.ug.dsa.datastructures.LinkedList;
+import com.ug.dsa.datastructures.DynamicArray;
 
 public class BinarySearch {
 
     private BinarySearch() {
     }
 
-    public static <T extends Comparable<T>> int search(LinkedList<T> list, T target) {
+    public static <T extends Comparable<T>> int search(DynamicArray<T> array, T target) {
         int low = 0;
-        int high = list.size() - 1;
+        int high = array.size() - 1;
         while (low <= high) {
             int mid = low + (high - low) / 2;
-            int comparison = list.get(mid).compareTo(target);
+            int comparison = array.get(mid).compareTo(target);
             if (comparison == 0) {
                 return mid;
             } else if (comparison < 0) {
@@ -24,22 +24,22 @@ public class BinarySearch {
         return -1;
     }
 
-    public static <T extends Comparable<T>> int searchRecursive(LinkedList<T> list, T target) {
-        return searchRecursive(list, target, 0, list.size() - 1);
+    public static <T extends Comparable<T>> int searchRecursive(DynamicArray<T> array, T target) {
+        return searchRecursive(array, target, 0, array.size() - 1);
     }
 
-    private static <T extends Comparable<T>> int searchRecursive(LinkedList<T> list, T target, int low, int high) {
+    private static <T extends Comparable<T>> int searchRecursive(DynamicArray<T> array, T target, int low, int high) {
         if (low > high) {
             return -1;
         }
         int mid = low + (high - low) / 2;
-        int comparison = list.get(mid).compareTo(target);
+        int comparison = array.get(mid).compareTo(target);
         if (comparison == 0) {
             return mid;
         } else if (comparison < 0) {
-            return searchRecursive(list, target, mid + 1, high);
+            return searchRecursive(array, target, mid + 1, high);
         } else {
-            return searchRecursive(list, target, low, mid - 1);
+            return searchRecursive(array, target, low, mid - 1);
         }
     }
 }
