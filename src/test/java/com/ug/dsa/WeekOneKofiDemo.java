@@ -1,7 +1,6 @@
 package com.ug.dsa;
 
 import com.ug.dsa.algorithms.Kruskal;
-import com.ug.dsa.datastructures.Edge;
 import com.ug.dsa.datastructures.Graph;
 
 public class WeekOneKofiDemo {

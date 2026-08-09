@@ -1,51 +1,58 @@
 package com.ug.dsa.datastructures;
 
-public class Queue {
+public class Queue<T> {
 
-    private class Node {
-        int value;
-        Node next;
+    private static class Node<T> {
+        private final T data;
+        private Node<T> next;
 
-        Node(int value) {
-            this.value = value;
+        public Node(T data) {
+            this.data = data;
+            this.next = null;
         }
     }
 
-    private Node front;
-    private Node rear;
+    private Node<T> front;
+    private Node<T> rear;
     private int size;
 
-    public void enqueue(int value) {
-        Node newNode = new Node(value);
-        if (rear == null) {
+    public Queue() {
+        this.front = null;
+        this.rear = null;
+        this.size = 0;
+    }
+
+    public void enqueue(T element) {
+        Node<T> newNode = new Node<>(element);
+        if (isEmpty()) {
             front = newNode;
-            rear = newNode;
         } else {
             rear.next = newNode;
-            rear = newNode;
         }
+        rear = newNode;
         size++;
     }
 
-    public int dequeue() {
-        if (front == null) {
-            throw new RuntimeException("Queue is empty");
+    public T dequeue() {
+        if (isEmpty()) {
+            throw new IllegalStateException("Cannot dequeue from an empty queue.");
         }
-        int value = front.value;
+        T data = front.data;
         front = front.next;
         if (front == null) {
             rear = null;
         }
         size--;
-        return value;
+        return data;
     }
 
-    public int peek() {
-        if (front == null) {
-            throw new RuntimeException("Queue is empty");
+    public T front() {
+        if (isEmpty()) {
+            throw new IllegalStateException("Queue is empty.");
         }
-        return front.value;
+        return front.data;
     }
+
 
     public boolean isEmpty() {
         return front == null;
