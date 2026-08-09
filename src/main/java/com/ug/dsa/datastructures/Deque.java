@@ -1,4 +1,5 @@
 package com.ug.dsa.datastructures;
+import java.util.NoSuchElementException;
 
 public class Deque<T> {
     private static class Node<T> {
@@ -23,9 +24,7 @@ public class Deque<T> {
         this.size = 0;
     }
 
-    /**
-     * Inserts an element at the front of the deque. O(1).
-     */
+    //Inserts an element at the front of the deque. O(1).
     public void addFront(T value) {
         Node<T> newNode = new Node<>(value);
 
@@ -41,9 +40,8 @@ public class Deque<T> {
         size++;
     }
 
-    /**
-     * Inserts an element at the rear of the deque. O(1).
-     */
+
+     //Inserts an element at the rear of the deque. O(1).
     public void addRear(T value) {
         Node<T> newNode = new Node<>(value);
 
@@ -58,14 +56,9 @@ public class Deque<T> {
         size++;
     }
 
-    /**
-     * Removes and returns the element at the front of the deque. O(1).
-     *
-     * @throws java.util.NoSuchElementException if the deque is empty
-     */
     public T removeFront() {
         if (isEmpty()) {
-            throw new java.util.NoSuchElementException("removeFront: deque is empty");
+            throw new NoSuchElementException("removeFront: deque is empty");
         }
 
         T removedData = head.data;
@@ -82,14 +75,10 @@ public class Deque<T> {
         return removedData;
     }
 
-    /**
-     * Removes and returns the element at the rear of the deque. O(1).
-     *
-     * @throws java.util.NoSuchElementException if the deque is empty
-     */
+
     public T removeRear() {
         if (isEmpty()) {
-            throw new java.util.NoSuchElementException("removeRear: deque is empty");
+            throw new NoSuchElementException("removeRear: deque is empty");
         }
 
         T removedData = tail.data;
@@ -105,51 +94,30 @@ public class Deque<T> {
         return removedData;
     }
 
-    /**
-     * Returns (without removing) the element at the front of the deque.
-     *
-     * @throws java.util.NoSuchElementException if the deque is empty
-     */
     public T peekFront() {
         if (isEmpty()) {
-            throw new java.util.NoSuchElementException("peekFront: deque is empty");
+            throw new NoSuchElementException("peekFront: deque is empty");
         }
         return head.data;
     }
 
-    /**
-     * Returns (without removing) the element at the rear of the deque.
-     *
-     * @throws java.util.NoSuchElementException if the deque is empty
-     */
     public T peekRear() {
         if (isEmpty()) {
-            throw new java.util.NoSuchElementException("peekRear: deque is empty");
+            throw new NoSuchElementException("peekRear: deque is empty");
         }
         return tail.data;
     }
 
-    /**
-     * Returns true if the deque contains no elements.
-     */
+
     public boolean isEmpty() {
         return head == null;
     }
 
-    /**
-     * Returns the number of elements currently in the deque.
-     * (Not in the required method list, but genuinely useful for
-     * debugging/demo output.)
-     */
+
     public int size() {
         return size;
     }
 
-    /**
-     * Returns a front-to-rear string representation, e.g. [A, B, C]
-     * where A is the front and C is the rear. Useful for demoing
-     * and sanity-checking behaviour.
-     */
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("[");
