@@ -4,15 +4,7 @@ import com.ug.dsa.datastructures.Edge;
 import com.ug.dsa.datastructures.Graph;
 import com.ug.dsa.datastructures.MinHeap;
 
-/**
- * Dijkstra's Shortest Path Algorithm, built from scratch.
- *
- * Owner: Roselyn Francis (Member 10)
- * Required data structures: Graph, Heap.
- *
- * This class receives the Graph and MinHeap from outside through
- * the constructor.
- */
+
 public class Dijkstra {
 
     private Graph graph;
