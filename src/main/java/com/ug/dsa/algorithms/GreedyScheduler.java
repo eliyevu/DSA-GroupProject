@@ -108,27 +108,4 @@ public class GreedyScheduler {
 
         return new ScheduleResult(scheduled, totalProfit);
     }
-
-    public static void main(String[] args) {
-        DynamicArray<Job> jobs = new DynamicArray<>();
-        jobs.add(new Job("J1", 2, 60));
-        jobs.add(new Job("J2", 1, 100));
-        jobs.add(new Job("J3", 3, 20));
-        jobs.add(new Job("J4", 2, 40));
-        jobs.add(new Job("J5", 1, 20));
-
-        System.out.println("Input Jobs:");
-        for (int i = 0; i < jobs.size(); i++) {
-            System.out.println("  " + jobs.get(i));
-        }
-
-        ScheduleResult result = schedule(jobs);
-
-        System.out.println("\nScheduled Jobs:");
-        for (int i = 0; i < result.scheduledJobs.size(); i++) {
-            System.out.println("  " + result.scheduledJobs.get(i));
-        }
-
-        System.out.println("\nTotal Maximum Profit: " + result.totalProfit);
-    }
 }

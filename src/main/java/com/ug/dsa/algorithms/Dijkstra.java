@@ -2,15 +2,15 @@ package com.ug.dsa.algorithms;
 
 import com.ug.dsa.datastructures.Edge;
 import com.ug.dsa.datastructures.Graph;
-import com.ug.dsa.datastructures.MinHeap;
+import com.ug.dsa.datastructures.Heap;
 
 
 public class Dijkstra {
 
     private Graph graph;
-    private MinHeap heap;
+    private Heap<Integer> heap;
 
-    public Dijkstra(Graph graph, MinHeap heap) {
+    public Dijkstra(Graph graph, Heap<Integer> heap) {
         this.graph = graph;
         this.heap = heap;
     }

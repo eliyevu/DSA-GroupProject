@@ -1,13 +1,5 @@
 package com.ug.dsa.datastructures;
 
-/**
- * Custom generic implementation of a Disjoint Set (Union-Find) data structure.
- * Supports path compression and union by rank for near-constant time operations.
- * Maps elements of type T to their corresponding representative sets.
- * Uses a completely custom, collections-free hash map implementation for mapping.
- *
- * @param <T> the type of elements in the disjoint set
- */
 public class DisjointSet<T> {
 
     // Custom helper node to represent each element's set properties
@@ -127,9 +119,6 @@ public class DisjointSet<T> {
 
     /**
      * Initializes a disjoint set of a given size with elements from 0 to size - 1.
-     * Each element is initially its own parent with a rank of 0.
-     *
-     * @param size the number of elements in the disjoint set
      */
     @SuppressWarnings("unchecked")
     public DisjointSet(int size) {
@@ -144,8 +133,6 @@ public class DisjointSet<T> {
 
     /**
      * Creates a new set containing the specified element.
-     *
-     * @param element the element to make a set for
      */
     public void makeSet(T element) {
         if (element == null) {
@@ -173,9 +160,6 @@ public class DisjointSet<T> {
     /**
      * Finds the representative element of the set containing the given element.
      * Applies path compression to flatten the structure.
-     *
-     * @param element the element to find
-     * @return the representative of the set containing element
      */
     public T find(T element) {
         if (element == null) {
@@ -191,10 +175,6 @@ public class DisjointSet<T> {
     /**
      * Merges the set containing element1 with the set containing element2.
      * Applies union by rank to keep tree depths minimal.
-     *
-     * @param element1 first element
-     * @param element2 second element
-     * @return true if the sets were merged, false if they were already in the same set
      */
     public boolean union(T element1, T element2) {
         if (element1 == null || element2 == null) {
@@ -228,8 +208,6 @@ public class DisjointSet<T> {
 
     /**
      * Returns the total number of elements registered in the disjoint set.
-     *
-     * @return size of the disjoint set
      */
     public int getSize() {
         return nodeMap.size();
