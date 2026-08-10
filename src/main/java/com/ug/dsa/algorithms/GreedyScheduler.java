@@ -1,11 +1,12 @@
 package com.ug.dsa.algorithms;
 
+import com.ug.dsa.datastructures.DynamicArray;
+
 public class GreedyScheduler {
-   
+
     public static class Job {
         public final String id;
         public final int deadline;
-
         public final int profit;
 
         public Job(String id, int deadline, int profit) {
@@ -16,7 +17,7 @@ public class GreedyScheduler {
 
         @Override
         public String toString() {
-            return "Job{id='" + id + "'. deadline=" + deadlline + ", profit=" + profit + "}";
+            return "Job{id='" + id + "', deadline=" + deadline + ", profit=" + profit + "}";
         }
     }
 
@@ -31,97 +32,101 @@ public class GreedyScheduler {
 
         @Override
         public String toString() {
-            return "Slot " + slot + " -> " + job.id + " (profit=" + job.profit +")";
+            return "Slot " + slot + " -> " + job.id + " (profit=" + job.profit + ")";
         }
     }
 
     public static class ScheduleResult {
-        public final ScheduleJob[] scheduledJobs;
-        public final int scheduledCount;
+        public final DynamicArray<ScheduledJob> scheduledJobs;
         public final int totalProfit;
 
-        public ScheduleResult(ScheduledJob[] scheduledJobs, int scheduledCount, int totalProfit) {
-            this.scheduledJobs = scheduledjobs;
-            this.scheduledCount = scheduledCount;
-            this.totalprofit = totalProfit;
+        public ScheduleResult(DynamicArray<ScheduledJob> scheduledJobs, int totalProfit) {
+            this.scheduledJobs = scheduledJobs;
+            this.totalProfit = totalProfit;
         }
     }
 
-    private static void sortByProfitDescending(Job[] jobs) {
-        for (int i = 1; i < jobs.length; i++) {
-            Job current = jobs[i];
+    private static DynamicArray<Job> sortByProfitDescending(DynamicArray<Job> jobs) {
+        DynamicArray<Job> sorted = new DynamicArray<>();
+        for (int i = 0; i < jobs.size(); i++) {
+            sorted.add(jobs.get(i));
+        }
+
+        for (int i = 1; i < sorted.size(); i++) {
+            Job current = sorted.get(i);
             int j = i - 1;
-            while (j >= 0 && jobs[j].profit < current.profit) {
-                jobs[j + 1] = jobs[j];
+            while (j >= 0 && sorted.get(j).profit < current.profit) {
+                sorted.set(j + 1, sorted.get(j));
                 j--;
             }
-            jobs[j + 1] = current;
+            sorted.set(j + 1, current);
         }
+
+        return sorted;
     }
 
-    public static ScheduleResult schedule(Job[] jobs) {
-        if (jobs == null || jobs.length == 0) {
-            return new ScheduleResult(new ScheduledJob[0], 0, 0);
+    public static ScheduleResult schedule(DynamicArray<Job> jobs) {
+        DynamicArray<ScheduledJob> scheduled = new DynamicArray<>();
+
+        if (jobs == null || jobs.isEmpty()) {
+            return new ScheduleResult(scheduled, 0);
         }
 
         // Step 1: sort a copy of the jobs by profit, highest first
-        Job[] sortedJobs = new Job[jobs.length];
-        for (int i = 0; i < jobs.length; i++) {
-            sortedJobs[i] = jobs[i];
-        }
-        sortByProfitDescending(sortedJobs);
+        DynamicArray<Job> sortedJobs = sortByProfitDescending(jobs);
 
         // Step 2: find the maximum deadline to know how many slots exist
         int maxDeadline = 0;
-        for (Job job : jobs) {
-            if (job.deadline > maxDeadline) {
-                maxDeadline = job.deadline;
+        for (int i = 0; i < jobs.size(); i++) {
+            if (jobs.get(i).deadline > maxDeadline) {
+                maxDeadline = jobs.get(i).deadline;
             }
         }
 
         // Step 3: slots[1..maxDeadline] track which time units are taken
-        Job[] slots = new Job[maxDeadline + 1];
+        DynamicArray<Job> slots = new DynamicArray<>(maxDeadline + 1);
+        for (int i = 0; i <= maxDeadline; i++) {
+            slots.add(null);
+        }
 
-        ScheduledJob[] scheduled = new ScheduledJob[jobs.length];
-        int scheduledCount = 0;
         int totalProfit = 0;
 
         // Step 4: place each job as late as possible before its deadline
-        for (Job job : sortedJobs) {
+        for (int i = 0; i < sortedJobs.size(); i++) {
+            Job job = sortedJobs.get(i);
             int latestSlot = Math.min(job.deadline, maxDeadline);
+
             for (int slot = latestSlot; slot >= 1; slot--) {
-                if (slots[slot] == null) {
-                    slots[slot] = job;
-                    scheduled[scheduledCount] = new ScheduledJob(job, slot);
-                    scheduledCount++;
+                if (slots.get(slot) == null) {
+                    slots.set(slot, job);
+                    scheduled.add(new ScheduledJob(job, slot));
                     totalProfit += job.profit;
                     break;
                 }
             }
         }
 
-        return new ScheduleResult(scheduled, scheduledCount, totalProfit);
+        return new ScheduleResult(scheduled, totalProfit);
     }
 
     public static void main(String[] args) {
-        Job[] jobs = new Job[] {
-            new Job("J1", 2, 60),
-            new Job("J2", 1, 100),
-            new Job("J3", 3, 20),
-            new Job("J4", 2, 40),
-            new Job("J5", 1, 20)
-        };
+        DynamicArray<Job> jobs = new DynamicArray<>();
+        jobs.add(new Job("J1", 2, 60));
+        jobs.add(new Job("J2", 1, 100));
+        jobs.add(new Job("J3", 3, 20));
+        jobs.add(new Job("J4", 2, 40));
+        jobs.add(new Job("J5", 1, 20));
 
         System.out.println("Input Jobs:");
-        for (Job job : jobs) {
-            System.out.println("  " + job);
+        for (int i = 0; i < jobs.size(); i++) {
+            System.out.println("  " + jobs.get(i));
         }
 
         ScheduleResult result = schedule(jobs);
 
         System.out.println("\nScheduled Jobs:");
-        for (int i = 0; i < result.scheduledCount; i++) {
-            System.out.println("  " + result.scheduledJobs[i]);
+        for (int i = 0; i < result.scheduledJobs.size(); i++) {
+            System.out.println("  " + result.scheduledJobs.get(i));
         }
 
         System.out.println("\nTotal Maximum Profit: " + result.totalProfit);
