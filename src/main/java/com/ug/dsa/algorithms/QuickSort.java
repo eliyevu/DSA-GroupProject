@@ -2,7 +2,6 @@ package com.ug.dsa.algorithms;
 
 import com.ug.dsa.datastructures.DynamicArray;
 
-
 public class QuickSort {
 
     /**
