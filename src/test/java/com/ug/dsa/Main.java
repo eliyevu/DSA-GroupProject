@@ -32,7 +32,7 @@ public class Main {
 
         System.out.println("\n=== Testing Insertion Sort ===");
         Integer[] numbers = {29, 10, 14, 37, 13, 2, 88};
-        
+
         System.out.println("Before sorting: " + Arrays.toString(numbers));
         InsertionSort.sort(numbers);
         System.out.println("After sorting:  " + Arrays.toString(numbers));
