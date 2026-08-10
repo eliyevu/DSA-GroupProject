@@ -14,9 +14,9 @@ public class Knapsack {
      */
     public static class Result {
         private final int maxValue;
-        private final DynamicArray selectedIndices;
+        private final DynamicArray<Integer> selectedIndices;
 
-        public Result(int maxValue, DynamicArray selectedIndices) {
+        public Result(int maxValue, DynamicArray<Integer> selectedIndices) {
             this.maxValue = maxValue;
             this.selectedIndices = selectedIndices;
         }
@@ -25,35 +25,51 @@ public class Knapsack {
             return maxValue;
         }
 
-        public DynamicArray getSelectedIndices() {
+        public DynamicArray<Integer> getSelectedIndices() {
             return selectedIndices;
         }
     }
 
-    /**
-     * Solves the 0/1 Knapsack problem and returns the maximum value.
-     *
-     * @param weights  DynamicArray of item weights
-     * @param values   DynamicArray of item values
-     * @param capacity maximum capacity of the knapsack
-     * @return maximum value achievable within the capacity
-     */
-    public static int solve(DynamicArray weights, DynamicArray values, int capacity) {
+
+    public static int solve(DynamicArray<Integer> weights, DynamicArray<Integer> values, int capacity) {
         return solveDetailed(weights, values, capacity).getMaxValue();
     }
 
-    /**
-     * Solves the 0/1 Knapsack problem and returns a detailed Result containing
-     * the maximum value and the specific items selected.
-     *
-     * @param weights  DynamicArray of item weights
-     * @param values   DynamicArray of item values
-     * @param capacity maximum capacity of the knapsack
-     * @return a Result object detailing the maximum value and selected items
-     */
-    public static Result solveDetailed(DynamicArray weights, DynamicArray values, int capacity) {
-        if (weights == null || values == null || weights.size() != values.size() || capacity <= 0) {
-            return new Result(0, new DynamicArray());
+
+    public static Result solveDetailed(DynamicArray<Integer> weights, DynamicArray<Integer> values, int capacity) {
+        if (weights == null) {
+            throw new IllegalArgumentException("Weights array cannot be null.");
+        }
+        if (values == null) {
+            throw new IllegalArgumentException("Values array cannot be null.");
+        }
+        if (weights.size() != values.size()) {
+            throw new IllegalArgumentException("Weights and values arrays must have the same size.");
+        }
+        if (capacity < 0) {
+            throw new IllegalArgumentException("Capacity cannot be negative.");
+        }
+
+        // Validate negative weights and values
+        for (int i = 0; i < weights.size(); i++) {
+            Integer weight = weights.get(i);
+            Integer value = values.get(i);
+            if (weight == null) {
+                throw new IllegalArgumentException("Weight at index " + i + " cannot be null.");
+            }
+            if (weight < 0) {
+                throw new IllegalArgumentException("Weight at index " + i + " cannot be negative.");
+            }
+            if (value == null) {
+                throw new IllegalArgumentException("Value at index " + i + " cannot be null.");
+            }
+            if (value < 0) {
+                throw new IllegalArgumentException("Value at index " + i + " cannot be negative.");
+            }
+        }
+
+        if (capacity == 0 || weights.size() == 0) {
+            return new Result(0, new DynamicArray<Integer>());
         }
 
         int n = weights.size();
@@ -76,7 +92,7 @@ public class Knapsack {
         int maxValue = dp[n][capacity];
 
         // Backtrack to find the selected items
-        DynamicArray selectedIndices = new DynamicArray();
+        DynamicArray<Integer> selectedIndices = new DynamicArray<>();
         int w = capacity;
         for (int i = n; i > 0 && w > 0; i--) {
             // If the value differs from the row above, the i-th item was included
