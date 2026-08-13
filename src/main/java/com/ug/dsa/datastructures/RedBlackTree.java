@@ -1,23 +1,28 @@
 package com.ug.dsa.datastructures;
 
-public class RedBlackTree {
+import java.util.ArrayList;
+import java.util.List;
+
+
+public class RedBlackTree<T extends Comparable<T>> {
 
     private static final boolean RED = true;
     private static final boolean BLACK = false;
 
-    private static class Node {
-        int key;
-        boolean color;
-        Node left, right, parent;
 
-        Node(int key) {
+    static class Node<T> {
+        T key;
+        boolean color;
+        Node<T> left, right, parent;
+
+        Node(T key) {
             this.key = key;
-            this.color = RED;
+            this.color = RED; 
         }
     }
 
-    private final Node NIL = new Node(-1);
-    private Node root;
+    private final Node<T> NIL = new Node<>(null);
+    private Node<T> root;
 
     public RedBlackTree() {
         NIL.color = BLACK;
@@ -25,8 +30,9 @@ public class RedBlackTree {
         root = NIL;
     }
 
-    private void leftRotate(Node x) {
-        Node y = x.right;
+
+    private void leftRotate(Node<T> x) {
+        Node<T> y = x.right;
         x.right = y.left;
         if (y.left != NIL) {
             y.left.parent = x;
@@ -43,8 +49,8 @@ public class RedBlackTree {
         x.parent = y;
     }
 
-    private void rightRotate(Node x) {
-        Node y = x.left;
+    private void rightRotate(Node<T> x) {
+        Node<T> y = x.left;
         x.left = y.right;
         if (y.right != NIL) {
             y.right.parent = x;
@@ -61,41 +67,44 @@ public class RedBlackTree {
         x.parent = y;
     }
 
-    public void insert(int key) {
-        Node new_node = new Node(key);
-        new_node.left = NIL;
-        new_node.right = NIL;
 
-        Node y = NIL;
-        Node x = root;
+    public void insert(T key) {
+        Node<T> z = new Node<>(key);
+        z.left = NIL;
+        z.right = NIL;
+
+        Node<T> y = NIL;
+        Node<T> x = root;
 
         while (x != NIL) {
             y = x;
-            if (new_node.key < x.key) {
+            int cmp = z.key.compareTo(x.key);
+            if (cmp < 0) {
                 x = x.left;
-            } else if (new_node.key > x.key) {
+            } else if (cmp > 0) {
                 x = x.right;
             } else {
-                return;
+                return; 
             }
         }
 
-        new_node.parent = y;
+        z.parent = y;
         if (y == NIL) {
-            root = new_node;
-        } else if (new_node.key < y.key) {
-            y.left = new_node;
+            root = z;
+        } else if (z.key.compareTo(y.key) < 0) {
+            y.left = z;
         } else {
-            y.right = new_node;
+            y.right = z;
         }
 
-        fixInsert(new_node);
+        fixInsert(z);
     }
 
-    private void fixInsert(Node z) {
+    private void fixInsert(Node<T> z) {
         while (z.parent.color == RED) {
             if (z.parent == z.parent.parent.left) {
-                Node uncle = z.parent.parent.right;
+                Node<T> uncle = z.parent.parent.right;
+
                 if (uncle.color == RED) {
                     z.parent.color = BLACK;
                     uncle.color = BLACK;
@@ -111,7 +120,8 @@ public class RedBlackTree {
                     rightRotate(z.parent.parent);
                 }
             } else {
-                Node uncle = z.parent.parent.left;
+                Node<T> uncle = z.parent.parent.left;
+
                 if (uncle.color == RED) {
                     z.parent.color = BLACK;
                     uncle.color = BLACK;
@@ -127,6 +137,7 @@ public class RedBlackTree {
                     leftRotate(z.parent.parent);
                 }
             }
+
             if (z == root) {
                 break;
             }
@@ -135,89 +146,59 @@ public class RedBlackTree {
     }
 
 
-    boolean isValid() {
-        if (root.color != BLACK) return false;
-        return computeBlackHeight(root) != -1;
-    }
-
-    private int computeBlackHeight(Node node) {
-        if (node == NIL) return 1;
-
-        if (node.color == RED) {
-            if (node.left.color == RED || node.right.color == RED) {
-                return -1;
-            }
-        }
-
-        int leftBH = computeBlackHeight(node.left);
-        int rightBH = computeBlackHeight(node.right);
-
-        if (leftBH == -1 || rightBH == -1 || leftBH != rightBH) {
-            return -1;
-        }
-
-        return leftBH + (node.color == BLACK ? 1 : 0);
-    }
-
-    java.util.List<Integer> inorderKeys() {
-        java.util.List<Integer> result = new java.util.ArrayList<>();
-        inorderHelper(root, result);
-        return result;
-    }
-
-    private void inorderHelper(Node node, java.util.List<Integer> result) {
-        if (node == NIL) return;
-        inorderHelper(node.left, result);
-        result.add(node.key);
-        inorderHelper(node.right, result);
-    }
-
-    boolean contains(int key) {
-        Node cur = root;
+    public boolean contains(T key) {
+        Node<T> cur = root;
         while (cur != NIL) {
-            if (key == cur.key) return true;
-            cur = key < cur.key ? cur.left : cur.right;
+            int cmp = key.compareTo(cur.key);
+            if (cmp == 0) return true;
+            cur = cmp < 0 ? cur.left : cur.right;
         }
         return false;
-    }
-
-    Node getRoot() {
-        return root;
-    }
-
-    boolean isRed(Node n) {
-        return n.color == RED;
-    }
-
-    int size() {
-        return inorderKeys().size();
     }
 
     public boolean isEmpty() {
         return root == NIL;
     }
 
-    int height() {
+    public int size() {
+        return inorderKeys().size();
+    }
+
+    public int height() {
         return heightHelper(root);
     }
 
-    private int heightHelper(Node node) {
+    private int heightHelper(Node<T> node) {
         if (node == NIL) return -1;
         return 1 + Math.max(heightHelper(node.left), heightHelper(node.right));
     }
 
 
-    java.util.List<String> levelOrderByDepth() {
-        java.util.List<String> lines = new java.util.ArrayList<>();
+    public List<T> inorderKeys() {
+        List<T> result = new ArrayList<>();
+        inorderHelper(root, result);
+        return result;
+    }
+
+    private void inorderHelper(Node<T> node, List<T> result) {
+        if (node == NIL) return;
+        inorderHelper(node.left, result);
+        result.add(node.key);
+        inorderHelper(node.right, result);
+    }
+
+
+    public List<String> levelOrderByDepth() {
+        List<String> lines = new ArrayList<>();
         if (root == NIL) return lines;
 
-        java.util.Queue<Node> queue = new java.util.LinkedList<>();
+        Queue<Node<T>> queue = new LinkedList<>();
         queue.add(root);
         while (!queue.isEmpty()) {
             int levelSize = queue.size();
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < levelSize; i++) {
-                Node n = queue.poll();
+                Node<T> n = queue.poll();
                 sb.append(n.key).append(n.color == RED ? "R" : "B").append(" ");
                 if (n.left != NIL) queue.add(n.left);
                 if (n.right != NIL) queue.add(n.right);
@@ -228,7 +209,39 @@ public class RedBlackTree {
     }
 
 
-    String getRootKeyColor() {
+    public boolean isValid() {
+        if (root.color != BLACK) return false; 
+        return computeBlackHeight(root) != -1;
+    }
+
+    private int computeBlackHeight(Node<T> node) {
+        if (node == NIL) return 1; 
+
+        if (node.color == RED) {
+            if (node.left.color == RED || node.right.color == RED) {
+                return -1; 
+            }
+        }
+
+        int leftBH = computeBlackHeight(node.left);
+        int rightBH = computeBlackHeight(node.right);
+
+        if (leftBH == -1 || rightBH == -1 || leftBH != rightBH) {
+            return -1; 
+        }
+
+        return leftBH + (node.color == BLACK ? 1 : 0);
+    }
+
+    Node<T> getRoot() {
+        return root;
+    }
+
+    boolean isRed(Node<T> n) {
+        return n.color == RED;
+    }
+
+    public String getRootKeyColor() {
         if (root == NIL) return "(empty)";
         return root.key + (root.color == RED ? "R" : "B");
     }
