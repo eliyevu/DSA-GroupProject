@@ -1,17 +1,16 @@
 package com.ug.dsa.datastructures;
 
-import java.util.Objects;
-
 /**
- * Custom Hash Table implementation using Separate Chaining for collision resolution.
- * Supports insertion, searching, deletion, dynamic resizing (rehashing), and null keys.
- *
- * @param <K> Key type
- * @param <V> Value type
+ * Custom generic Hash Table implementation using Separate Chaining
+ * for collision resolution.
  */
 public class HashTable<K, V> {
 
+    /**
+     * Node used to store a key-value pair in a bucket chain.
+     */
     private static class Entry<K, V> {
+
         final K key;
         V value;
         Entry<K, V> next;
@@ -37,84 +36,114 @@ public class HashTable<K, V> {
     private final float loadFactor;
 
     /**
-     * Constructs a HashTable with default initial capacity (16) and load factor (0.75).
+     * Creates a Hash Table with the default capacity and load factor.
      */
     public HashTable() {
         this(DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR);
     }
 
     /**
-     * Constructs a HashTable with a specified initial capacity and default load factor (0.75).
+     * Creates a Hash Table with a specified initial capacity.
      *
-     * @param initialCapacity initial bucket capacity
+     * @param initialCapacity initial number of buckets
      */
     public HashTable(int initialCapacity) {
         this(initialCapacity, DEFAULT_LOAD_FACTOR);
     }
 
     /**
-     * Constructs a HashTable with specified initial capacity and load factor.
-     *
-     * @param initialCapacity initial bucket capacity
-     * @param loadFactor      threshold ratio for dynamic resizing
+     * Creates a Hash Table with specified capacity and load factor.
      */
     @SuppressWarnings("unchecked")
     public HashTable(int initialCapacity, float loadFactor) {
+
         if (initialCapacity <= 0) {
-            throw new IllegalArgumentException("Initial capacity must be greater than 0.");
+            throw new IllegalArgumentException(
+                    "Initial capacity must be greater than 0."
+            );
         }
+
         if (loadFactor <= 0 || Float.isNaN(loadFactor)) {
-            throw new IllegalArgumentException("Load factor must be greater than 0.");
+            throw new IllegalArgumentException(
+                    "Load factor must be greater than 0."
+            );
         }
+
         this.capacity = initialCapacity;
         this.loadFactor = loadFactor;
         this.size = 0;
-        this.table = new Entry[this.capacity];
+
+        table = new Entry[capacity];
     }
 
     /**
-     * Computes the bucket index for a given key.
-     *
-     * @param key target key
-     * @return bucket index in [0, capacity - 1]
+     * Compares two objects without using java.util.Objects.
+     */
+    private boolean areEqual(Object first, Object second) {
+
+        if (first == second) {
+            return true;
+        }
+
+        if (first == null || second == null) {
+            return false;
+        }
+
+        return first.equals(second);
+    }
+
+    /**
+     * Calculates the bucket index for a key.
      */
     private int getBucketIndex(Object key) {
+
         if (key == null) {
             return 0;
         }
+
         int hash = key.hashCode();
-        return Math.abs(hash % capacity);
+        int index = hash % capacity;
+
+        // Prevent negative bucket indexes.
+        if (index < 0) {
+            index += capacity;
+        }
+
+        return index;
     }
 
     /**
-     * Inserts or updates a key-value pair in the Hash Table.
-     * Handles collisions using separate chaining and resizes table if load factor threshold is met.
+     * Inserts a key-value pair.
      *
-     * @param key   key to insert or update
-     * @param value value associated with key
-     * @return previous value associated with key, or null if key was not previously present
+     * If the key already exists, its value is updated.
      */
     public V put(K key, V value) {
-        int index = getBucketIndex(key);
-        Entry<K, V> head = table[index];
 
-        // Check if key already exists in bucket chain
-        Entry<K, V> curr = head;
-        while (curr != null) {
-            if (Objects.equals(curr.key, key)) {
-                V oldValue = curr.value;
-                curr.value = value;
+        int index = getBucketIndex(key);
+        Entry<K, V> current = table[index];
+
+        // Search for an existing key.
+        while (current != null) {
+
+            if (areEqual(current.key, key)) {
+
+                V oldValue = current.value;
+                current.value = value;
+
                 return oldValue;
             }
-            curr = curr.next;
+
+            current = current.next;
         }
 
-        // Key not found: prepend new node to bucket chain
-        Entry<K, V> newEntry = new Entry<>(key, value, head);
+        // Key does not exist, so create a new entry.
+        Entry<K, V> newEntry =
+                new Entry<>(key, value, table[index]);
+
         table[index] = newEntry;
         size++;
 
-        // Dynamic resizing check
+        // Resize when load factor threshold is reached.
         if ((float) size / capacity >= loadFactor) {
             resize(capacity * 2);
         }
@@ -123,172 +152,198 @@ public class HashTable<K, V> {
     }
 
     /**
-     * Searches for and returns the value associated with the specified key.
+     * Returns the value associated with a key.
      *
-     * @param key key to search for
-     * @return value associated with key, or null if key does not exist
+     * @return value if found, otherwise null
      */
     public V get(K key) {
-        int index = getBucketIndex(key);
-        Entry<K, V> curr = table[index];
 
-        while (curr != null) {
-            if (Objects.equals(curr.key, key)) {
-                return curr.value;
+        int index = getBucketIndex(key);
+        Entry<K, V> current = table[index];
+
+        while (current != null) {
+
+            if (areEqual(current.key, key)) {
+                return current.value;
             }
-            curr = curr.next;
+
+            current = current.next;
         }
 
         return null;
     }
 
     /**
-     * Deletes the key-value pair associated with the specified key.
+     * Removes the entry associated with a key.
      *
-     * @param key key to remove
-     * @return removed value associated with key, or null if key was not found
+     * @return removed value, or null if key was not found
      */
     public V remove(K key) {
-        int index = getBucketIndex(key);
-        Entry<K, V> curr = table[index];
-        Entry<K, V> prev = null;
 
-        while (curr != null) {
-            if (Objects.equals(curr.key, key)) {
-                if (prev == null) {
-                    table[index] = curr.next;
+        int index = getBucketIndex(key);
+
+        Entry<K, V> current = table[index];
+        Entry<K, V> previous = null;
+
+        while (current != null) {
+
+            if (areEqual(current.key, key)) {
+
+                if (previous == null) {
+                    table[index] = current.next;
                 } else {
-                    prev.next = curr.next;
+                    previous.next = current.next;
                 }
+
                 size--;
-                return curr.value;
+
+                return current.value;
             }
-            prev = curr;
-            curr = curr.next;
+
+            previous = current;
+            current = current.next;
         }
 
         return null;
     }
 
     /**
-     * Checks if the specified key exists in the Hash Table.
-     *
-     * @param key key to check
-     * @return true if key exists, false otherwise
+     * Checks whether a key exists.
      */
     public boolean containsKey(K key) {
-        int index = getBucketIndex(key);
-        Entry<K, V> curr = table[index];
 
-        while (curr != null) {
-            if (Objects.equals(curr.key, key)) {
+        int index = getBucketIndex(key);
+        Entry<K, V> current = table[index];
+
+        while (current != null) {
+
+            if (areEqual(current.key, key)) {
                 return true;
             }
-            curr = curr.next;
+
+            current = current.next;
         }
 
         return false;
     }
 
     /**
-     * Checks if the specified value exists in any entry of the Hash Table.
-     *
-     * @param value value to search for
-     * @return true if value exists, false otherwise
+     * Checks whether a value exists.
      */
     public boolean containsValue(V value) {
+
         for (int i = 0; i < capacity; i++) {
-            Entry<K, V> curr = table[i];
-            while (curr != null) {
-                if (Objects.equals(curr.value, value)) {
+
+            Entry<K, V> current = table[i];
+
+            while (current != null) {
+
+                if (areEqual(current.value, value)) {
                     return true;
                 }
-                curr = curr.next;
+
+                current = current.next;
             }
         }
+
         return false;
     }
 
     /**
-     * Returns the total number of key-value pairs stored in the Hash Table.
-     *
-     * @return current size
+     * Returns the number of key-value pairs.
      */
     public int size() {
         return size;
     }
 
     /**
-     * Checks if the Hash Table is empty.
-     *
-     * @return true if empty, false otherwise
+     * Checks whether the Hash Table is empty.
      */
     public boolean isEmpty() {
         return size == 0;
     }
 
     /**
-     * Returns the current array bucket capacity.
-     *
-     * @return capacity
+     * Returns the current number of buckets.
      */
     public int getCapacity() {
         return capacity;
     }
 
     /**
-     * Removes all key-value entries from the Hash Table.
+     * Removes all entries from the Hash Table.
      */
     @SuppressWarnings("unchecked")
     public void clear() {
-        this.table = new Entry[capacity];
-        this.size = 0;
+
+        table = new Entry[capacity];
+        size = 0;
     }
 
     /**
-     * Resizes the Hash Table bucket array and rehashes all existing entries.
-     *
-     * @param newCapacity new bucket array size
+     * Resizes the table and rehashes all existing entries.
      */
     @SuppressWarnings("unchecked")
     private void resize(int newCapacity) {
+
         Entry<K, V>[] oldTable = table;
         int oldCapacity = capacity;
 
-        this.capacity = newCapacity;
-        this.table = new Entry[newCapacity];
+        capacity = newCapacity;
+        table = new Entry[newCapacity];
 
         for (int i = 0; i < oldCapacity; i++) {
-            Entry<K, V> curr = oldTable[i];
-            while (curr != null) {
-                Entry<K, V> next = curr.next;
-                int newIndex = getBucketIndex(curr.key);
-                curr.next = table[newIndex];
-                table[newIndex] = curr;
-                curr = next;
+
+            Entry<K, V> current = oldTable[i];
+
+            while (current != null) {
+
+                Entry<K, V> next = current.next;
+
+                int newIndex = getBucketIndex(current.key);
+
+                current.next = table[newIndex];
+                table[newIndex] = current;
+
+                current = next;
             }
         }
     }
 
+    /**
+     * Displays the contents of the Hash Table.
+     */
     @Override
     public String toString() {
+
         if (isEmpty()) {
             return "{}";
         }
-        StringBuilder sb = new StringBuilder("{");
+
+        StringBuilder result = new StringBuilder("{");
         boolean first = true;
+
         for (int i = 0; i < capacity; i++) {
-            Entry<K, V> curr = table[i];
-            while (curr != null) {
+
+            Entry<K, V> current = table[i];
+
+            while (current != null) {
+
                 if (!first) {
-                    sb.append(", ");
+                    result.append(", ");
                 }
-                sb.append(curr.key).append("=").append(curr.value);
+
+                result.append(current.key)
+                        .append("=")
+                        .append(current.value);
+
                 first = false;
-                curr = curr.next;
+                current = current.next;
             }
         }
-        sb.append("}");
-        return sb.toString();
+
+        result.append("}");
+
+        return result.toString();
     }
 }
