@@ -30,27 +30,12 @@ public class Knapsack {
         }
     }
 
-    /**
-     * Solves the 0/1 Knapsack problem and returns the maximum value.
-     *
-     * @param weights  DynamicArray of item weights
-     * @param values   DynamicArray of item values
-     * @param capacity maximum capacity of the knapsack
-     * @return maximum value achievable within the capacity
-     */
+
     public static int solve(DynamicArray<Integer> weights, DynamicArray<Integer> values, int capacity) {
         return solveDetailed(weights, values, capacity).getMaxValue();
     }
 
-    /**
-     * Solves the 0/1 Knapsack problem and returns a detailed Result containing
-     * the maximum value and the specific items selected.
-     *
-     * @param weights  DynamicArray of item weights
-     * @param values   DynamicArray of item values
-     * @param capacity maximum capacity of the knapsack
-     * @return a Result object detailing the maximum value and selected items
-     */
+
     public static Result solveDetailed(DynamicArray<Integer> weights, DynamicArray<Integer> values, int capacity) {
         if (weights == null) {
             throw new IllegalArgumentException("Weights array cannot be null.");
