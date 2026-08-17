@@ -1,36 +1,84 @@
 package com.ug.dsa.models;
 
-/**
- * Minimal Location model.
- *
- * NOTE: this was an empty stub. Added the minimum fields needed to
- * support Team 4's Indexing/Search service (findLocation by id).
- * Whoever owns this model, feel free to extend with more fields
- * (name, coordinates, etc.) - just keep the id field since
- * IndexingService depends on it.
- *
- * Added by: Amoah Edward Junior (Member 7)
- */
 public class Location {
 
-    private String id;
+    private int locationId;
     private String name;
+    private String area;
+    private String type;
+    private double latitude;
+    private double longitude;
 
-    public Location(String id, String name) {
-        this.id = id;
-        this.name = name;
+    public Location() {
     }
 
-    public String getId() {
-        return id;
+    public Location(int locationId, String name, String area, String type,
+                    double latitude, double longitude) {
+        this.locationId = locationId;
+        this.name = name;
+        this.area = area;
+        this.type = type;
+        this.latitude = latitude;
+        this.longitude = longitude;
+    }
+
+    public int getLocationId() {
+        return locationId;
+    }
+
+    public void setLocationId(int locationId) {
+        this.locationId = locationId;
     }
 
     public String getName() {
         return name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getArea() {
+        return area;
+    }
+
+    public void setArea(String area) {
+        this.area = area;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+    }
+
     @Override
     public String toString() {
-        return "Location{id='" + id + "', name='" + name + "'}";
+        return "Location{" +
+                "locationId=" + locationId +
+                ", name='" + name + '\'' +
+                ", area='" + area + '\'' +
+                ", type='" + type + '\'' +
+                ", latitude=" + latitude +
+                ", longitude=" + longitude +
+                '}';
     }
 }
