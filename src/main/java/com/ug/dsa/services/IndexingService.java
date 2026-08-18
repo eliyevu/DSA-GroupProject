@@ -1,89 +1,75 @@
 package com.ug.dsa.services;
 
-import com.ug.dsa.datastructures.BTree;
-import com.ug.dsa.models.Location;
-import com.ug.dsa.models.Resource;
+import com.ug.dsa.datastructures.HashTable;
+import com.ug.dsa.datastructures.RedBlackTree;
+import com.ug.dsa.datastructures.DynamicArray;
+import com.ug.dsa.models.ServiceRequest;
 
-/**
- * TEAM 4 - Indexing / Search
- * Members: Amoah Edward Junior, Abiwu Kelvin Nutifafa
- *
- * This half of the task (B-Tree side) covers findLocation() and
- * findResource(). Kelvin's half (Hash Table / BST side) covers
- * findRequestById() and findRequestsByCategory() separately.
- *
- * Does NOT implement its own tree logic - reuses the team's existing
- * custom BTree<K, V> (owned by Roselyn Francis, modified to be generic
- * so it can store a value alongside each key).
- */
 public class IndexingService {
 
-    private final BTree<String, Location> locationIndex;
-    private final BTree<String, Resource> resourceIndex;
-
-    private static final int BTREE_DEGREE = 3; // minimum degree (t) for the B-Trees
+    private final HashTable<String, ServiceRequest> requestById;
+    private final RedBlackTree<CategoryEntry> requestsByCategory;
 
     public IndexingService() {
-        locationIndex = new BTree<>(BTREE_DEGREE);
-        resourceIndex = new BTree<>(BTREE_DEGREE);
+        this.requestById = new HashTable<>();
+        this.requestsByCategory = new RedBlackTree<>();
     }
 
-    // ------------------------------------------------------------
-    // Indexing (adding data in)
-    // ------------------------------------------------------------
-
-    /**
-     * Add a location to the index so it can later be found by id.
-     */
-    public void indexLocation(Location location) {
-        if (location == null || location.getId() == null) {
-            throw new IllegalArgumentException("Location and its id must not be null");
+    public void indexRequest(ServiceRequest request) {
+        if (request == null) {
+            return;
         }
-        locationIndex.insert(location.getId(), location);
+        String id = request.getId();
+        String category = request.getCategory();
+        requestById.put(id, request);
+        requestsByCategory.insert(new CategoryEntry(category, id, request));
     }
 
-    /**
-     * Add a resource to the index so it can later be found by id.
-     */
-    public void indexResource(Resource resource) {
-        if (resource == null || resource.getId() == null) {
-            throw new IllegalArgumentException("Resource and its id must not be null");
+    public ServiceRequest findRequestById(String id) {
+        if (id == null) {
+            return null;
         }
-        resourceIndex.insert(resource.getId(), resource);
+        return requestById.get(id);
     }
 
-    // ------------------------------------------------------------
-    // Lookups
-    // ------------------------------------------------------------
-
-    /**
-     * Find a location by its id. Returns null if not found.
-     */
-    public Location findLocation(String id) {
-        return locationIndex.search(id);
+    public DynamicArray findRequestsByCategory(String category) {
+        DynamicArray matches = new DynamicArray();
+        if (category == null) {
+            return matches;
+        }
+        DynamicArray allEntries = requestsByCategory.inorderKeys();
+        for (int i = 0; i < allEntries.size(); i++) {
+            CategoryEntry entry = (CategoryEntry) allEntries.get(i);
+            if (entry.category.equals(category)) {
+                matches.add(entry.request);
+            }
+        }
+        return matches;
     }
 
-    /**
-     * Find a resource by its id. Returns null if not found.
-     */
-    public Resource findResource(String id) {
-        return resourceIndex.search(id);
-    }
+    private static class CategoryEntry implements Comparable<CategoryEntry> {
+        final String category;
+        final String id;
+        final ServiceRequest request;
 
-    // ------------------------------------------------------------
-    // Demo
-    // ------------------------------------------------------------
+        CategoryEntry(String category, String id, ServiceRequest request) {
+            this.category = category;
+            this.id = id;
+            this.request = request;
+        }
 
-    public static void main(String[] args) {
-        IndexingService indexingService = new IndexingService();
+        @Override
+        public int compareTo(CategoryEntry other) {
+            int categoryComparison = this.category.compareTo(other.category);
+            if (categoryComparison != 0) {
+                return categoryComparison;
+            }
+            return this.id.compareTo(other.id);
+        }
 
-        indexingService.indexLocation(new Location("L1", "Main Gate"));
-        indexingService.indexLocation(new Location("L2", "Library"));
-        indexingService.indexResource(new Resource("R1", "Shuttle Bus A"));
-        indexingService.indexResource(new Resource("R2", "Maintenance Van"));
-
-        System.out.println("Lookup L2: " + indexingService.findLocation("L2"));
-        System.out.println("Lookup R1: " + indexingService.findResource("R1"));
-        System.out.println("Lookup L99 (missing): " + indexingService.findLocation("L99"));
+        @Override
+        public String toString() {
+            return category + ":" + id;
+        }
     }
 }
