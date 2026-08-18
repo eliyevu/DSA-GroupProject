@@ -1,36 +1,76 @@
 package com.ug.dsa.models;
 
-/**
- * Minimal Resource model.
- *
- * NOTE: this was an empty stub. Added the minimum fields needed to
- * support Team 4's Indexing/Search service (findResource by id).
- * Whoever owns this model, feel free to extend with more fields
- * (type, capacity, etc.) - just keep the id field since
- * IndexingService depends on it.
- *
- * Added by: Amoah Edward Junior (Member 7)
- */
 public class Resource {
 
-    private String id;
-    private String name;
+    private int resourceId;
+    private String type;
+    private int homeLocation;
+    private int capacity;
+    private String availabilityStatus;
 
-    public Resource(String id, String name) {
-        this.id = id;
-        this.name = name;
+    public Resource() {
     }
 
-    public String getId() {
-        return id;
+    public Resource(int resourceId,
+                    String type,
+                    int homeLocation,
+                    int capacity,
+                    String availabilityStatus) {
+        this.resourceId = resourceId;
+        this.type = type;
+        this.homeLocation = homeLocation;
+        this.capacity = capacity;
+        this.availabilityStatus = availabilityStatus;
     }
 
-    public String getName() {
-        return name;
+    public int getResourceId() {
+        return resourceId;
+    }
+
+    public void setResourceId(int resourceId) {
+        this.resourceId = resourceId;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public int getHomeLocation() {
+        return homeLocation;
+    }
+
+    public void setHomeLocation(int homeLocation) {
+        this.homeLocation = homeLocation;
+    }
+
+    public int getCapacity() {
+        return capacity;
+    }
+
+    public void setCapacity(int capacity) {
+        this.capacity = capacity;
+    }
+
+    public String getAvailabilityStatus() {
+        return availabilityStatus;
+    }
+
+    public void setAvailabilityStatus(String availabilityStatus) {
+        this.availabilityStatus = availabilityStatus;
     }
 
     @Override
     public String toString() {
-        return "Resource{id='" + id + "', name='" + name + "'}";
+        return "Resource{" +
+                "resourceId=" + resourceId +
+                ", type='" + type + '\'' +
+                ", homeLocation=" + homeLocation +
+                ", capacity=" + capacity +
+                ", availabilityStatus='" + availabilityStatus + '\'' +
+                '}';
     }
 }
