@@ -1,32 +1,13 @@
 package com.ug.dsa.datastructures;
 
-/**
- * Generic B-Tree implementation following the standard CLRS algorithm.
- *
- * Owner: Roselyn Francis (Member 10)
- *
- * Week One scope:
- * - Insertion
- * - Searching
- * - Traversal for demonstration purposes
- *
- * The implementation is fully custom and uses arrays only.
- * No Java collection classes are used.
- *
- * @param <T> the type of values stored in the B-Tree.
- *            T must implement Comparable<T>.
- */
-public class BTree<T extends Comparable<T>> {
 
-    private BTreeNode<T> root;
+public class BTree<K extends Comparable<K>, V> {
+
+    private BTreeNode<K, V> root;
 
     private int t;
 
-    /**
-     * Creates an empty B-Tree with the specified minimum degree.
-     *
-     * @param degree minimum degree of the B-Tree
-     */
+    // Creates an empty B-Tree with the specified minimum degree.
     public BTree(int degree) {
 
         if (degree < 2) {
@@ -44,19 +25,37 @@ public class BTree<T extends Comparable<T>> {
     // ---------------------------------------------------------------
 
     /**
-     * Searches for a value in the B-Tree.
-     *
-     * @param key value to search for
-     * @return true if the value exists, false otherwise
+     * Return the value associated with the given key, or null if the
+     * key is not present.
      */
-    public boolean search(T key) {
-        return search(root, key) != null;
+    public V search(K key) {
+
+        BTreeNode<K, V> node = searchNode(root, key);
+
+        if (node == null) {
+            return null;
+        }
+
+        int i = 0;
+        while (i < node.numberOfKeys && key.compareTo(node.keys[i]) > 0) {
+            i++;
+        }
+
+        return node.values[i];
     }
 
     /**
-     * Recursive search operation.
+     * Check whether a key exists in the tree.
      */
-    private BTreeNode<T> search(BTreeNode<T> node, T key) {
+    public boolean contains(K key) {
+        return searchNode(root, key) != null;
+    }
+
+    /**
+     * Recursive search operation - returns the node containing the key,
+     * or null if not found.
+     */
+    private BTreeNode<K, V> searchNode(BTreeNode<K, V> node, K key) {
 
         if (node == null) {
             return null;
@@ -64,13 +63,11 @@ public class BTree<T extends Comparable<T>> {
 
         int i = 0;
 
-        while (i < node.numberOfKeys
-                && key.compareTo(node.keys[i]) > 0) {
+        while (i < node.numberOfKeys && key.compareTo(node.keys[i]) > 0) {
             i++;
         }
 
-        if (i < node.numberOfKeys
-                && key.compareTo(node.keys[i]) == 0) {
+        if (i < node.numberOfKeys && key.compareTo(node.keys[i]) == 0) {
             return node;
         }
 
@@ -78,7 +75,7 @@ public class BTree<T extends Comparable<T>> {
             return null;
         }
 
-        return search(node.children[i], key);
+        return searchNode(node.children[i], key);
     }
 
     // ---------------------------------------------------------------
@@ -86,16 +83,14 @@ public class BTree<T extends Comparable<T>> {
     // ---------------------------------------------------------------
 
     /**
-     * Inserts a value into the B-Tree.
+     * Inserts a key/value pair into the B-Tree.
      *
-     * Duplicate values are ignored.
-     *
-     * @param key value to insert
+     * Duplicate keys are ignored.
      */
-    public void insert(T key) {
+    public void insert(K key, V value) {
 
-        // Reject duplicates.
-        if (search(key)) {
+        // Reject duplicate keys - this B-Tree stores each key at most once.
+        if (contains(key)) {
             return;
         }
 
@@ -105,6 +100,7 @@ public class BTree<T extends Comparable<T>> {
             root = new BTreeNode<>(t, true);
 
             root.keys[0] = key;
+            root.values[0] = value;
             root.numberOfKeys = 1;
 
             return;
@@ -113,7 +109,7 @@ public class BTree<T extends Comparable<T>> {
         // If root is full, create a new root and split it.
         if (root.numberOfKeys == 2 * t - 1) {
 
-            BTreeNode<T> newRoot = new BTreeNode<>(t, false);
+            BTreeNode<K, V> newRoot = new BTreeNode<>(t, false);
 
             newRoot.children[0] = root;
 
@@ -122,40 +118,39 @@ public class BTree<T extends Comparable<T>> {
             root = newRoot;
         }
 
-        insertNonFull(root, key);
+        insertNonFull(root, key, value);
     }
 
     /**
-     * Inserts a value into a subtree whose root is not full.
+     * Inserts a key/value into a subtree rooted at {@code node}, which is
+     * guaranteed to NOT be full when this is called.
      */
-    private void insertNonFull(BTreeNode<T> node, T key) {
+    private void insertNonFull(BTreeNode<K, V> node, K key, V value) {
 
         int i = node.numberOfKeys - 1;
 
         if (node.leaf) {
 
-            // Shift keys to the right to make room.
-            while (i >= 0
-                    && key.compareTo(node.keys[i]) < 0) {
-
+            // Shift keys/values right to make room, then insert.
+            while (i >= 0 && key.compareTo(node.keys[i]) < 0) {
                 node.keys[i + 1] = node.keys[i];
+                node.values[i + 1] = node.values[i];
                 i--;
             }
 
             node.keys[i + 1] = key;
+            node.values[i + 1] = value;
             node.numberOfKeys++;
 
         } else {
 
             // Find the appropriate child.
-            while (i >= 0
-                    && key.compareTo(node.keys[i]) < 0) {
+            while (i >= 0 && key.compareTo(node.keys[i]) < 0) {
                 i--;
             }
-
             i++;
 
-            // If child is full, split it.
+            // If child is full, split it first.
             if (node.children[i].numberOfKeys == 2 * t - 1) {
 
                 splitChild(node, i);
@@ -165,7 +160,7 @@ public class BTree<T extends Comparable<T>> {
                 }
             }
 
-            insertNonFull(node.children[i], key);
+            insertNonFull(node.children[i], key, value);
         }
     }
 
@@ -174,64 +169,47 @@ public class BTree<T extends Comparable<T>> {
     // ---------------------------------------------------------------
 
     /**
-     * Splits a full child of the parent node.
-     *
-     * The median value moves into the parent.
-     * The right half moves into a newly created node.
+     * Splits the full child at index {@code i} of {@code parent}.
+     * Moves the median key/value up into parent, and the right half of
+     * the keys/values/children into a brand new node.
      */
-    private void splitChild(BTreeNode<T> parent, int i) {
+    private void splitChild(BTreeNode<K, V> parent, int i) {
 
-        BTreeNode<T> fullChild = parent.children[i];
-
-        BTreeNode<T> newChild =
-                new BTreeNode<>(t, fullChild.leaf);
+        BTreeNode<K, V> fullChild = parent.children[i];
+        BTreeNode<K, V> newChild = new BTreeNode<>(t, fullChild.leaf);
 
         newChild.numberOfKeys = t - 1;
 
-        // Move the right half of the keys.
+        // Move the right half of the keys/values into the new node.
         for (int j = 0; j < t - 1; j++) {
-
-            newChild.keys[j] =
-                    fullChild.keys[j + t];
+            newChild.keys[j] = fullChild.keys[j + t];
+            newChild.values[j] = fullChild.values[j + t];
         }
 
-        // Move the right half of the children.
+        // Move the right half of the children, if not a leaf.
         if (!fullChild.leaf) {
-
             for (int j = 0; j < t; j++) {
-
-                newChild.children[j] =
-                        fullChild.children[j + t];
+                newChild.children[j] = fullChild.children[j + t];
             }
         }
 
-        // Move the median key to the parent.
-        T medianKey = fullChild.keys[t - 1];
-
+        K medianKey = fullChild.keys[t - 1];
+        V medianValue = fullChild.values[t - 1];
         fullChild.numberOfKeys = t - 1;
 
-        // Shift parent's children to make room.
-        for (int j = parent.numberOfKeys;
-             j >= i + 1;
-             j--) {
-
-            parent.children[j + 1] =
-                    parent.children[j];
+        // Shift parent's children right to make room for newChild.
+        for (int j = parent.numberOfKeys; j >= i + 1; j--) {
+            parent.children[j + 1] = parent.children[j];
         }
-
         parent.children[i + 1] = newChild;
 
-        // Shift parent's keys to make room for median.
-        for (int j = parent.numberOfKeys - 1;
-             j >= i;
-             j--) {
-
-            parent.keys[j + 1] =
-                    parent.keys[j];
+        // Shift parent's keys/values right to make room for the median.
+        for (int j = parent.numberOfKeys - 1; j >= i; j--) {
+            parent.keys[j + 1] = parent.keys[j];
+            parent.values[j + 1] = parent.values[j];
         }
-
         parent.keys[i] = medianKey;
-
+        parent.values[i] = medianValue;
         parent.numberOfKeys++;
     }
 
@@ -241,24 +219,20 @@ public class BTree<T extends Comparable<T>> {
 
     /**
      * Traverses the B-Tree in ascending order.
-     *
-     * This method is provided primarily for demonstration purposes.
+     * Provided primarily for demonstration purposes.
      */
     public void traverse() {
         traverse(root);
     }
 
-    /**
-     * Recursive traversal.
-     */
-    private void traverse(BTreeNode<T> node) {
+    /** Recursive inorder traversal, prints keys in ascending order. */
+    private void traverse(BTreeNode<K, V> node) {
 
         if (node == null) {
             return;
         }
 
         int i;
-
         for (i = 0; i < node.numberOfKeys; i++) {
 
             if (!node.leaf) {
@@ -278,38 +252,33 @@ public class BTree<T extends Comparable<T>> {
     // ---------------------------------------------------------------
 
     /**
-     * Node used internally by the B-Tree.
-     *
-     * This is a static nested class so BTreeNode is no longer
-     * maintained as a separate public class/file.
+     * Node used internally by the B-Tree. Kept as a private static
+     * nested class (Roselyn's structural choice) rather than a
+     * separate BTreeNode.java file. Stores a value alongside each key
+     * so the tree can be used as a key-value index, not just a
+     * membership-check structure.
      */
-    private static class BTreeNode<T extends Comparable<T>> {
+    private static class BTreeNode<K extends Comparable<K>, V> {
 
-        private T[] keys;
-
-        private BTreeNode<T>[] children;
-
+        private K[] keys;
+        private V[] values;
+        private BTreeNode<K, V>[] children;
         private int numberOfKeys;
-
         private boolean leaf;
 
         /**
-         * Creates a B-Tree node.
-         *
-         * The arrays are created manually and no Java collection
-         * classes are used.
+         * Creates a B-Tree node. Arrays are created manually - no Java
+         * collection classes are used.
          */
         @SuppressWarnings("unchecked")
         private BTreeNode(int degree, boolean leaf) {
 
             this.leaf = leaf;
-
             this.numberOfKeys = 0;
 
-            this.keys = (T[]) new Comparable[2 * degree - 1];
-
-            this.children =
-                    (BTreeNode<T>[]) new BTreeNode[2 * degree];
+            this.keys = (K[]) new Comparable[2 * degree - 1];
+            this.values = (V[]) new Object[2 * degree - 1];
+            this.children = (BTreeNode<K, V>[]) new BTreeNode[2 * degree];
         }
     }
 }
