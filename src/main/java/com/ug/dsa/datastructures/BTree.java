@@ -1,39 +1,13 @@
 package com.ug.dsa.datastructures;
 
-/**
- * Generic B-Tree implementation following the standard CLRS algorithm.
- *
- * Original owner: Roselyn Francis (Member 10)
- * Modified by: Amoah Edward Junior (Member 7) - made generic (key + value)
- * to support Team 4's Indexing/Search service (findLocation, findResource).
- *
- * WHY THIS CHANGED: the original BTree only stored a single comparable
- * value per key, with no way to attach an associated object (e.g. a
- * Location or Resource record) to a key. Indexing needs "find the record
- * with this id", not just "does this id exist". The insert/search/split
- * algorithm itself is UNCHANGED from the original - only the data each
- * node carries changed (a value alongside each key).
- *
- * Keeps Roselyn's structural choice of nesting BTreeNode as a private
- * static class inside BTree (no separate BTreeNode.java file).
- *
- * Public API: insert(K key, V value), search(K key), contains(K key), traverse()
- * Private methods: splitChild(), insertNonFull(), searchNode()
- *
- * @param <K> key type, must be Comparable so keys can be ordered
- * @param <V> value type associated with each key
- */
+
 public class BTree<K extends Comparable<K>, V> {
 
     private BTreeNode<K, V> root;
 
     private int t;
 
-    /**
-     * Creates an empty B-Tree with the specified minimum degree.
-     *
-     * @param degree minimum degree of the B-Tree
-     */
+    // Creates an empty B-Tree with the specified minimum degree.
     public BTree(int degree) {
 
         if (degree < 2) {
@@ -112,9 +86,6 @@ public class BTree<K extends Comparable<K>, V> {
      * Inserts a key/value pair into the B-Tree.
      *
      * Duplicate keys are ignored.
-     *
-     * @param key   key to insert
-     * @param value value associated with the key
      */
     public void insert(K key, V value) {
 
