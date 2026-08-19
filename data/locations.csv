@@ -1,0 +1,53 @@
+﻿locationId,name,area,type,latitude,longitude
+1,UG Main Gate,North Campus,gate,5.655815,-0.188214
+2,Cluster of Schools Gate,North Campus,gate,5.654586,-0.186975
+3,Dept. of Botany,North Campus,department,5.652121,-0.192542
+4,School of Veterinary Medicine,Middle Campus,school,5.642269,-0.180646
+5,Balme Library,Middle Campus,library,5.643615,-0.188743
+6,JQB (Jones Quartey Building),Middle Campus,facility,5.657202,-0.193207
+7,Legon Hall,Middle Campus,hall,5.638902,-0.18194
+8,Akuafo Hall,Middle Campus,hall,5.641175,-0.177034
+9,Commonwealth Hall,Middle Campus,hall,5.650729,-0.191382
+10,Mensah Sarbah Hall,South Campus,hall,5.65388,-0.193175
+11,Volta Hall,Middle Campus,hall,5.644873,-0.186296
+12,Hilla Limann Hall,South Campus,hall,5.646196,-0.18472
+13,Alexander Kwapong Hall,South Campus,hall,5.646552,-0.193888
+14,International Students Hostel (ISH),South Campus,hostel,5.651372,-0.185977
+15,Pentagon Hostels,Pentagon,hostel,5.642712,-0.185754
+16,Okponglo Hostels,Okponglo,hostel,5.647634,-0.184813
+17,Central Cafeteria,Middle Campus,dining,5.657809,-0.191432
+18,Commonwealth Cafeteria,Middle Campus,dining,5.64772,-0.190127
+19,Night Market,South Campus,market,5.656128,-0.186285
+20,UG Bookshop,Middle Campus,retail,5.653203,-0.183858
+21,UG Post Office,Middle Campus,retail,5.654049,-0.189599
+22,UG Health Services,Middle Campus,health,5.640099,-0.191598
+23,University of Ghana Medical Centre (UGMC),South Campus,health,5.638755,-0.186891
+24,Noguchi Memorial Institute,South Campus,research,5.641857,-0.191596
+25,Vice Chancellor's Lodge,Middle Campus,office,5.64628,-0.186413
+26,Administration Block,Middle Campus,office,5.641615,-0.183169
+27,ISSER,North Campus,research,5.641668,-0.17767
+28,Institute of African Studies,Middle Campus,research,5.649106,-0.189888
+29,Dept. of Computer Science,North Campus,department,5.63859,-0.192694
+30,Dept. of Mathematics,North Campus,department,5.639473,-0.185992
+31,Dept. of Statistics,North Campus,department,5.649086,-0.183755
+32,Dept. of Physics,Middle Campus,department,5.649642,-0.18263
+33,Dept. of Chemistry,North Campus,department,5.656622,-0.189985
+34,Dept. of Geography & Resource Dev.,Middle Campus,department,5.641984,-0.181666
+35,Dept. of Economics,Middle Campus,department,5.64334,-0.180698
+36,Dept. of Political Science,North Campus,department,5.639839,-0.194985
+37,Dept. of Psychology,North Campus,department,5.648415,-0.194262
+38,Dept. of Sociology & Anthropology,Middle Campus,department,5.645776,-0.177528
+39,Dept. of Philosophy & Classics,Middle Campus,department,5.646604,-0.194206
+40,UG Business School (UGBS),North Campus,school,5.649525,-0.178557
+41,School of Law,North Campus,school,5.657255,-0.189032
+42,School of Public Health,South Campus,school,5.640743,-0.182875
+43,School of Engineering Sciences,North Campus,school,5.64563,-0.181197
+44,Language Centre,Middle Campus,school,5.646519,-0.196521
+45,School of Continuing & Distance Ed.,Middle Campus,school,5.652462,-0.194392
+46,UG Sports Stadium,South Campus,sports,5.644283,-0.183178
+47,Sports Directorate,South Campus,office,5.647242,-0.192806
+48,Legon Botanical Gardens,North Campus,leisure,5.640056,-0.194196
+49,Great Hall,Middle Campus,facility,5.65376,-0.18927
+50,Okponglo Gate,Okponglo,gate,5.644779,-0.18326
+51,Vikings Hostel,South Campus,hostel,5.644125,-0.188476
+52,Diaspora (UGEL Halls),South Campus,hostel,5.638063,-0.185021
