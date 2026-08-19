@@ -19,7 +19,7 @@ public class IndexingService {
         if (request == null) {
             return;
         }
-        String id = request.getId();
+        String id = String.valueOf(request.getRequestId());
         String category = request.getCategory();
         requestById.put(id, request);
         requestsByCategory.insert(new CategoryEntry(category, id, request));
