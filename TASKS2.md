@@ -1,4 +1,4 @@
-# Smart Service Operations Optimizer — Remaining Coding Tasks
+\# Smart Service Operations Optimizer — Remaining Coding Tasks
 
 ## Project Goal
 
