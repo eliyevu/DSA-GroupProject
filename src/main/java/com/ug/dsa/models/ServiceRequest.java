@@ -1,6 +1,6 @@
 package com.ug.dsa.models;
 
-public class ServiceRequest {
+public class ServiceRequest implements Comparable<ServiceRequest> {
 
     private int requestId;
     private int source;
@@ -11,8 +11,7 @@ public class ServiceRequest {
     private String deadline;
     private String status;
 
-    public ServiceRequest() {
-    }
+    public ServiceRequest() { }
 
     public ServiceRequest(int requestId,
                           int source,
@@ -32,69 +31,30 @@ public class ServiceRequest {
         this.status = status;
     }
 
-    public int getRequestId() {
-        return requestId;
-    }
+    // Getters and setters (unchanged)
+    public int getRequestId() { return requestId; }
+    public void setRequestId(int requestId) { this.requestId = requestId; }
 
-    public void setRequestId(int requestId) {
-        this.requestId = requestId;
-    }
+    public int getSource() { return source; }
+    public void setSource(int source) { this.source = source; }
 
-    public int getSource() {
-        return source;
-    }
+    public int getDestination() { return destination; }
+    public void setDestination(int destination) { this.destination = destination; }
 
-    public void setSource(int source) {
-        this.source = source;
-    }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
 
-    public int getDestination() {
-        return destination;
-    }
+    public int getUrgency() { return urgency; }
+    public void setUrgency(int urgency) { this.urgency = urgency; }
 
-    public void setDestination(int destination) {
-        this.destination = destination;
-    }
+    public String getTimeSubmitted() { return timeSubmitted; }
+    public void setTimeSubmitted(String timeSubmitted) { this.timeSubmitted = timeSubmitted; }
 
-    public String getCategory() {
-        return category;
-    }
+    public String getDeadline() { return deadline; }
+    public void setDeadline(String deadline) { this.deadline = deadline; }
 
-    public void setCategory(String category) {
-        this.category = category;
-    }
-
-    public int getUrgency() {
-        return urgency;
-    }
-
-    public void setUrgency(int urgency) {
-        this.urgency = urgency;
-    }
-
-    public String getTimeSubmitted() {
-        return timeSubmitted;
-    }
-
-    public void setTimeSubmitted(String timeSubmitted) {
-        this.timeSubmitted = timeSubmitted;
-    }
-
-    public String getDeadline() {
-        return deadline;
-    }
-
-    public void setDeadline(String deadline) {
-        this.deadline = deadline;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
     @Override
     public String toString() {
@@ -108,5 +68,14 @@ public class ServiceRequest {
                 ", deadline='" + deadline + '\'' +
                 ", status='" + status + '\'' +
                 '}';
+    }
+
+
+     // Compare ServiceRequests by urgency (descending).
+
+
+    @Override
+    public int compareTo(ServiceRequest other) {
+        return Integer.compare(other.urgency, this.urgency);
     }
 }
