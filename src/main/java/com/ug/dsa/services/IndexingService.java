@@ -31,6 +31,7 @@ public class IndexingService {
         if (request == null) {
             return;
         }
+        String id = String.valueOf(request.getRequestId());
         int id = request.getRequestId();
         String category = request.getCategory();
         requestById.put(id, request);
