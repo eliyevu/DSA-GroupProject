@@ -1,108 +1,115 @@
 package com.ug.dsa.database;
 
-
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * Initializer class to create the database schema and constraints.
+ * Creates the PostgreSQL schema used by the Campus Service Hub.
+ *
+ * The column names intentionally match the project models and DAOs.
  */
-public class DatabaseInitializer {
+public final class DatabaseInitializer {
 
-    public static void initializeDatabase() {
-        // 1. Locations Table
-        String createLocationsTable = """
+    private DatabaseInitializer() {
+    }
+
+    public static void initializeDatabase() throws SQLException {
+        String locations = """
             CREATE TABLE IF NOT EXISTS locations (
                 location_id INT PRIMARY KEY,
                 name VARCHAR(150) NOT NULL,
+                area VARCHAR(150) NOT NULL,
+                type VARCHAR(100) NOT NULL,
                 latitude DOUBLE PRECISION NOT NULL,
                 longitude DOUBLE PRECISION NOT NULL
-            );
-        """;
+            )
+            """;
 
-        // 2. Roads Table (Graph Edges)
-        String createRoadsTable = """
+        String roads = """
             CREATE TABLE IF NOT EXISTS roads (
                 road_id INT PRIMARY KEY,
-                source_location_id INT NOT NULL REFERENCES locations(location_id) ON DELETE CASCADE,
-                destination_location_id INT NOT NULL REFERENCES locations(location_id) ON DELETE CASCADE,
-                distance_km DOUBLE PRECISION NOT NULL CHECK (distance_km >= 0),
-                travel_time_mins DOUBLE PRECISION NOT NULL CHECK (travel_time_mins >= 0)
-            );
-        """;
+                from_location_id INT NOT NULL,
+                to_location_id INT NOT NULL,
+                distance DOUBLE PRECISION NOT NULL CHECK (distance >= 0),
+                travel_time DOUBLE PRECISION NOT NULL CHECK (travel_time >= 0),
+                road_condition_weight DOUBLE PRECISION NOT NULL CHECK (road_condition_weight > 0),
+                CONSTRAINT fk_road_from
+                    FOREIGN KEY (from_location_id) REFERENCES locations(location_id) ON DELETE CASCADE,
+                CONSTRAINT fk_road_to
+                    FOREIGN KEY (to_location_id) REFERENCES locations(location_id) ON DELETE CASCADE
+            )
+            """;
 
-        // 3. Service Requests Table
-        String createServiceRequestsTable = """
+        String serviceRequests = """
             CREATE TABLE IF NOT EXISTS service_requests (
                 request_id INT PRIMARY KEY,
-                location_id INT NOT NULL REFERENCES locations(location_id) ON DELETE CASCADE,
-                service_type VARCHAR(100) NOT NULL,
-                priority VARCHAR(20) NOT NULL CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
-                status VARCHAR(30) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED')),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """;
+                source INT NOT NULL,
+                destination INT NOT NULL,
+                category VARCHAR(100) NOT NULL,
+                urgency INT NOT NULL CHECK (urgency >= 1),
+                time_submitted VARCHAR(50) NOT NULL,
+                deadline VARCHAR(50) NOT NULL,
+                status VARCHAR(30) NOT NULL,
+                CONSTRAINT fk_request_source
+                    FOREIGN KEY (source) REFERENCES locations(location_id),
+                CONSTRAINT fk_request_destination
+                    FOREIGN KEY (destination) REFERENCES locations(location_id)
+            )
+            """;
 
-        // 4. Resources Table
-        String createResourcesTable = """
+        String resources = """
             CREATE TABLE IF NOT EXISTS resources (
                 resource_id INT PRIMARY KEY,
-                name VARCHAR(100) NOT NULL,
-                type VARCHAR(50) NOT NULL,
-                current_location_id INT NOT NULL REFERENCES locations(location_id) ON DELETE CASCADE,
-                is_available BOOLEAN DEFAULT TRUE
-            );
-        """;
+                type VARCHAR(100) NOT NULL,
+                home_location INT NOT NULL,
+                capacity INT NOT NULL CHECK (capacity >= 0),
+                availability_status VARCHAR(50) NOT NULL,
+                CONSTRAINT fk_resource_home
+                    FOREIGN KEY (home_location) REFERENCES locations(location_id)
+            )
+            """;
 
-        // 5. Algorithm Runs Table
-        String createAlgorithmRunsTable = """
+        String algorithmRuns = """
             CREATE TABLE IF NOT EXISTS algorithm_runs (
                 run_id INT PRIMARY KEY,
-                algorithm_name VARCHAR(100) NOT NULL,
-                execution_time_ms BIGINT NOT NULL CHECK (execution_time_ms >= 0),
-                run_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """;
+                algorithm_name VARCHAR(150) NOT NULL,
+                input_size INT NOT NULL CHECK (input_size >= 0),
+                time_ns BIGINT NOT NULL CHECK (time_ns >= 0),
+                memory_kb DOUBLE PRECISION NOT NULL CHECK (memory_kb >= 0),
+                date_run VARCHAR(50) NOT NULL
+            )
+            """;
 
-        // 6. Audit Events Table
-        String createAuditEventsTable = """
+        String auditEvents = """
             CREATE TABLE IF NOT EXISTS audit_events (
                 event_id INT PRIMARY KEY,
-                action VARCHAR(100) NOT NULL,
-                entity_affected VARCHAR(50) NOT NULL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                details TEXT
-            );
-        """;
+                event_type VARCHAR(50) NOT NULL,
+                request_id INT NOT NULL,
+                timestamp VARCHAR(50) NOT NULL,
+                description TEXT NOT NULL,
+                CONSTRAINT fk_audit_request
+                    FOREIGN KEY (request_id) REFERENCES service_requests(request_id) ON DELETE CASCADE
+            )
+            """;
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement()) {
+        try (Connection connection = DatabaseConnection.getConnection();
+             Statement statement = connection.createStatement()) {
 
-            conn.setAutoCommit(false); // Transaction management
-
-            stmt.execute(createLocationsTable);
-            stmt.execute(createRoadsTable);
-            stmt.execute(createServiceRequestsTable);
-            stmt.execute(createResourcesTable);
-            stmt.execute(createAlgorithmRunsTable);
-            stmt.execute(createAuditEventsTable);
-
-            conn.commit();
-            System.out.println("✅ All 6 tables and constraints created successfully.");
-
-        } catch (SQLException e) {
-            System.err.println("❌ Database initialization failed: " + e.getMessage());
-            e.printStackTrace();
+            connection.setAutoCommit(false);
+            try {
+                statement.execute(locations);
+                statement.execute(roads);
+                statement.execute(serviceRequests);
+                statement.execute(resources);
+                statement.execute(algorithmRuns);
+                statement.execute(auditEvents);
+                connection.commit();
+                System.out.println("  [DB] Schema initialized successfully.");
+            } catch (SQLException e) {
+                connection.rollback();
+                throw e;
+            }
         }
     }
-
-    /**
-     * Helper runner method to test database initialization.
-     */
-    public static void main(String[] args) {
-        System.out.println("Starting database initialization test...");
-        initializeDatabase();
-    }
 }
-

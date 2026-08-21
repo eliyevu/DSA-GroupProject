@@ -1,109 +1,109 @@
 package com.ug.dsa.services;
 
+import com.ug.dsa.algorithms.BFS;
+import com.ug.dsa.algorithms.DFS;
+import com.ug.dsa.algorithms.Dijkstra;
+import com.ug.dsa.algorithms.Kruskal;
+import com.ug.dsa.algorithms.Prim;
+import com.ug.dsa.datastructures.DynamicArray;
+import com.ug.dsa.datastructures.Edge;
+import com.ug.dsa.datastructures.Graph;
+import com.ug.dsa.datastructures.HashTable;
+import com.ug.dsa.datastructures.Heap;
 import com.ug.dsa.models.Location;
 import com.ug.dsa.models.Road;
 
-// Custom Data Structures
-import com.ug.dsa.datastructures.Graph;
-import com.ug.dsa.datastructures.DynamicArray;
-import com.ug.dsa.datastructures.HashTable;
-import com.ug.dsa.datastructures.Edge;
-import com.ug.dsa.datastructures.Heap;
-
-// Custom Algorithms
-import com.ug.dsa.algorithms.BFS;
-import com.ug.dsa.algorithms.Dijkstra;
-import com.ug.dsa.algorithms.Kruskal;
-
+/**
+ * Routing facade for the graph algorithms required by the project.
+ */
 public class RoutingService {
-    
-    private Graph networkGraph;
-    
-    // Maps domain Location.locationId to internal Graph index
-    private HashTable<Integer, Integer> locationIdToIndexMap;
-    // Maps internal Graph index back to the domain Location object
-    private HashTable<Integer, Location> indexToLocationMap;
 
-    public RoutingService(Graph networkGraph, 
-                          HashTable<Integer, Integer> idToIndexMap, 
+    private final Graph networkGraph;
+    private final HashTable<Integer, Integer> locationIdToIndexMap;
+    private final HashTable<Integer, Location> indexToLocationMap;
+
+    public RoutingService(Graph networkGraph,
+                          HashTable<Integer, Integer> idToIndexMap,
                           HashTable<Integer, Location> indexToLocMap) {
+        if (networkGraph == null || idToIndexMap == null || indexToLocMap == null) {
+            throw new IllegalArgumentException("Graph and location maps are required.");
+        }
         this.networkGraph = networkGraph;
         this.locationIdToIndexMap = idToIndexMap;
         this.indexToLocationMap = indexToLocMap;
     }
 
-    /**
-     * Finds all locations reachable from a starting point using BFS.
-     */
     public DynamicArray<Location> findReachableLocations(int startLocationId) {
-        int startIndex = locationIdToIndexMap.get(startLocationId);
-        
-        // Assumes BFS.traverse returns a DynamicArray of integers (graph indices)
-        DynamicArray<Integer> reachableIndices = BFS.traverse(networkGraph, startIndex);
-        
-        DynamicArray<Location> reachableLocations = new DynamicArray<>();
-        
-        for (int i = 0; i < reachableIndices.size(); i++) {
-            Location loc = indexToLocationMap.get(reachableIndices.get(i));
-            // Fixed: Changed from insert() to add() based on teammate's DynamicArray.java
-            reachableLocations.add(loc); 
-        }
-        
-        return reachableLocations;
+        int start = indexOf(startLocationId);
+        DynamicArray<Integer> indices = BFS.traverse(networkGraph, start);
+        return mapLocations(indices);
     }
 
-    /**
-     * Finds the shortest route utilizing Dijkstra's algorithm.
-     */
+    public DynamicArray<Location> depthFirstLocations(int startLocationId) {
+        int start = indexOf(startLocationId);
+        DynamicArray<Integer> indices = DFS.iterative(networkGraph, start);
+        return mapLocations(indices);
+    }
+
     public DynamicArray<Location> findShortestRoute(int startLocationId, int endLocationId) {
-        int startIndex = locationIdToIndexMap.get(startLocationId);
-        int endIndex = locationIdToIndexMap.get(endLocationId);
-        
-        // Fixed: Dijkstra requires instantiation with a Heap based on teammate's Dijkstra.java
-        Heap<Integer> minHeap = new Heap<>(); 
-        Dijkstra dijkstra = new Dijkstra(networkGraph, minHeap);
-        
-        // This returns distances, but the algorithm currently doesn't track the predecessor path
-        int[] distances = dijkstra.shortestPath(startIndex); 
-        
-        DynamicArray<Location> pathLocations = new DynamicArray<>();
-        
-        // TODO for Team: Dijkstra.java needs to be updated to maintain a 'parent[]' or 'predecessor[]' 
-        // array so the actual route can be reconstructed here. 
-        // For now, we return just the start and end to make it compile.
-        pathLocations.add(indexToLocationMap.get(startIndex));
-        pathLocations.add(indexToLocationMap.get(endIndex));
-        
-        return pathLocations;
+        int start = indexOf(startLocationId);
+        int end = indexOf(endLocationId);
+
+        Dijkstra dijkstra = new Dijkstra(networkGraph, new Heap<>());
+        DynamicArray<Integer> indices = dijkstra.reconstructPath(start, end);
+        return mapLocations(indices);
     }
 
-    /**
-     * Builds a minimum spanning tree representing the core campus network.
-     */
+    public int findShortestDistance(int startLocationId, int endLocationId) {
+        int start = indexOf(startLocationId);
+        int end = indexOf(endLocationId);
+        Dijkstra.Result result = new Dijkstra(networkGraph, new Heap<>()).compute(start);
+        return result.getDistances()[end];
+    }
+
     public DynamicArray<Road> buildMinimumNetwork() {
-        // Fixed: Call findMST and get the array of edges based on teammate's Kruskal.java
-        Kruskal.Result result = Kruskal.findMST(networkGraph);
-        Edge[] mstEdges = result.getMstEdges();
-        
-        DynamicArray<Road> minimumNetwork = new DynamicArray<>();
-        
-        // Convert the returned Edges back into our domain Road objects
-        for (int i = 0; i < mstEdges.length; i++) {
-            Edge edge = mstEdges[i];
-            Road road = new Road();
-            
-            // Map the graph indices back to domain location IDs
-            Location fromLoc = indexToLocationMap.get(edge.getSrc());
-            Location toLoc = indexToLocationMap.get(edge.getDest());
-            
-            if (fromLoc != null && toLoc != null) {
-                road.setFromLocationId(fromLoc.getLocationId());
-                road.setToLocationId(toLoc.getLocationId());
-                road.setDistance(edge.getWeight()); // Mapping weight to distance
-                minimumNetwork.add(road);
-            }
+        return convertEdges(Kruskal.findMST(networkGraph).getMstEdges());
+    }
+
+    public DynamicArray<Road> buildMinimumNetworkPrim() {
+        if (networkGraph.getNumVertices() == 0) return new DynamicArray<>();
+        return convertEdges(Prim.findMST(networkGraph).getMstEdges());
+    }
+
+    public boolean isConnected() {
+        if (networkGraph.getNumVertices() == 0) return true;
+        return Prim.findMST(networkGraph).isConnected();
+    }
+
+    public Graph getNetworkGraph() { return networkGraph; }
+
+    private int indexOf(int locationId) {
+        Integer index = locationIdToIndexMap.get(locationId);
+        if (index == null) throw new IllegalArgumentException("Unknown location ID: " + locationId);
+        return index;
+    }
+
+    private DynamicArray<Location> mapLocations(DynamicArray<Integer> indices) {
+        DynamicArray<Location> locations = new DynamicArray<>();
+        for (int i = 0; i < indices.size(); i++) {
+            Location location = indexToLocationMap.get(indices.get(i));
+            if (location != null) locations.add(location);
         }
-        
-        return minimumNetwork;
+        return locations;
+    }
+
+    private DynamicArray<Road> convertEdges(Edge[] edges) {
+        DynamicArray<Road> roads = new DynamicArray<>();
+        for (int i = 0; i < edges.length; i++) {
+            Edge edge = edges[i];
+            Location from = indexToLocationMap.get(edge.getSrc());
+            Location to = indexToLocationMap.get(edge.getDest());
+            if (from == null || to == null) continue;
+
+            // Graph stores distance * 100 as an integer weight.
+            roads.add(new Road(0, from.getLocationId(), to.getLocationId(),
+                    edge.getWeight() / 100.0, 0.0, edge.getWeight() / 100.0));
+        }
+        return roads;
     }
 }

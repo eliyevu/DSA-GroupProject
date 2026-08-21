@@ -1,7 +1,12 @@
 package com.ug.dsa.algorithms;
 
 import com.ug.dsa.datastructures.DynamicArray;
+import com.ug.dsa.datastructures.Heap;
 
+/**
+ * Greedy job scheduler using the project's custom Min-Heap.
+ * Highest-profit jobs are extracted first.
+ */
 public class GreedyScheduler {
 
     public static class Job {
@@ -46,54 +51,28 @@ public class GreedyScheduler {
         }
     }
 
-    private static DynamicArray<Job> sortByProfitDescending(DynamicArray<Job> jobs) {
-        DynamicArray<Job> sorted = new DynamicArray<>();
-        for (int i = 0; i < jobs.size(); i++) {
-            sorted.add(jobs.get(i));
-        }
-
-        for (int i = 1; i < sorted.size(); i++) {
-            Job current = sorted.get(i);
-            int j = i - 1;
-            while (j >= 0 && sorted.get(j).profit < current.profit) {
-                sorted.set(j + 1, sorted.get(j));
-                j--;
-            }
-            sorted.set(j + 1, current);
-        }
-
-        return sorted;
-    }
-
     public static ScheduleResult schedule(DynamicArray<Job> jobs) {
         DynamicArray<ScheduledJob> scheduled = new DynamicArray<>();
+        if (jobs == null || jobs.isEmpty()) return new ScheduleResult(scheduled, 0);
 
-        if (jobs == null || jobs.isEmpty()) {
-            return new ScheduleResult(scheduled, 0);
-        }
-
-        // Step 1: sort a copy of the jobs by profit, highest first
-        DynamicArray<Job> sortedJobs = sortByProfitDescending(jobs);
-
-        // Step 2: find the maximum deadline to know how many slots exist
         int maxDeadline = 0;
         for (int i = 0; i < jobs.size(); i++) {
-            if (jobs.get(i).deadline > maxDeadline) {
-                maxDeadline = jobs.get(i).deadline;
-            }
+            if (jobs.get(i).deadline > maxDeadline) maxDeadline = jobs.get(i).deadline;
         }
 
-        // Step 3: slots[1..maxDeadline] track which time units are taken
         DynamicArray<Job> slots = new DynamicArray<>(maxDeadline + 1);
-        for (int i = 0; i <= maxDeadline; i++) {
-            slots.add(null);
+        for (int i = 0; i <= maxDeadline; i++) slots.add(null);
+
+        // Min-Heap priority is negative profit, so the largest profit is extracted first.
+        Heap<Job> profitHeap = new Heap<>();
+        for (int i = 0; i < jobs.size(); i++) {
+            Job job = jobs.get(i);
+            profitHeap.insert(job, -job.profit);
         }
 
         int totalProfit = 0;
-
-        // Step 4: place each job as late as possible before its deadline
-        for (int i = 0; i < sortedJobs.size(); i++) {
-            Job job = sortedJobs.get(i);
+        while (!profitHeap.isEmpty()) {
+            Job job = profitHeap.extractMin();
             int latestSlot = Math.min(job.deadline, maxDeadline);
 
             for (int slot = latestSlot; slot >= 1; slot--) {

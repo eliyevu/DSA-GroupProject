@@ -1,35 +1,65 @@
 package com.ug.dsa.services;
 
-import com.ug.dsa.datastructures.DynamicArray;
-import com.ug.dsa.models.ServiceRequest;
-import com.ug.dsa.models.Resource;
-import com.ug.dsa.algorithms.QuickSort;
 import com.ug.dsa.algorithms.Knapsack;
+import com.ug.dsa.datastructures.DynamicArray;
+import com.ug.dsa.datastructures.Heap;
+import com.ug.dsa.models.Resource;
+import com.ug.dsa.models.ServiceRequest;
 
+/**
+ * Resource allocation service.
+ *
+ * Greedy uses the custom Heap to process the most urgent requests first.
+ * The cost is based on actual graph shortest-path distance rather than
+ * subtracting arbitrary location IDs.
+ *
+ * Knapsack uses the same operational cost/value model for comparison.
+ */
 public class OptimizationService {
 
-    public OptimizationService() { }
+    private RoutingService routingService;
 
+    public OptimizationService() {
+    }
 
-     // Greedy allocation of resources to requests.
+    public OptimizationService(RoutingService routingService) {
+        this.routingService = routingService;
+    }
 
-    public DynamicArray<ServiceRequest> allocateResources(DynamicArray<ServiceRequest> requests, Resource resource) {
+    public void setRoutingService(RoutingService routingService) {
+        this.routingService = routingService;
+    }
+
+    /**
+     * Greedy resource allocation:
+     * 1. Put requests into the custom Min-Heap using urgency as priority.
+     * 2. Extract the most urgent request.
+     * 3. Accept it if its operational route cost fits the remaining capacity.
+     */
+    public DynamicArray<ServiceRequest> allocateResources(
+            DynamicArray<ServiceRequest> requests,
+            Resource resource) {
+
         DynamicArray<ServiceRequest> selected = new DynamicArray<>();
+        if (requests == null || resource == null) return selected;
+        requireRoutingService();
 
-        // Sort requests by urgency using QuickSort
-        QuickSort.sort(requests);
+        Heap<ServiceRequest> urgencyHeap = new Heap<>();
+        for (int i = 0; i < requests.size(); i++) {
+            ServiceRequest request = requests.get(i);
+            if (request == null) continue;
+            urgencyHeap.insert(request, request.getUrgency());
+        }
 
         int remainingCapacity = resource.getCapacity();
 
-        for (int i = 0; i < requests.size(); i++) {
-            ServiceRequest req = requests.get(i);
+        while (!urgencyHeap.isEmpty()) {
+            ServiceRequest request = urgencyHeap.extractMin();
+            int cost = calculateOperationalCost(resource, request);
 
-            // Treat distance as cost, urgency as value
-            int cost = Math.abs(req.getDestination() - req.getSource());
-            int value = req.getUrgency();
-
+            if (cost == Integer.MAX_VALUE) continue;
             if (cost <= remainingCapacity) {
-                selected.add(req);
+                selected.add(request);
                 remainingCapacity -= cost;
             }
         }
@@ -37,26 +67,33 @@ public class OptimizationService {
         return selected;
     }
 
+    /**
+     * 0/1 Knapsack comparison using the same route cost and urgency value.
+     * Urgency 1 is treated as the highest value, so it receives the largest value.
+     */
+    public DynamicArray<ServiceRequest> selectRequests(
+            DynamicArray<ServiceRequest> requests,
+            int capacity) {
 
-     // Dynamic Programming selection of requests under capacity constraint.
-     // Using Knapsack algorithm implementation.
+        DynamicArray<ServiceRequest> selected = new DynamicArray<>();
+        if (requests == null || requests.isEmpty() || capacity <= 0) return selected;
+        requireRoutingService();
 
-    public DynamicArray<ServiceRequest> selectRequests(DynamicArray<ServiceRequest> requests, int capacity) {
         DynamicArray<Integer> weights = new DynamicArray<>();
         DynamicArray<Integer> values = new DynamicArray<>();
 
-        // Map ServiceRequest fields into weights and values
         for (int i = 0; i < requests.size(); i++) {
-            ServiceRequest req = requests.get(i);
-            int cost = Math.abs(req.getDestination() - req.getSource());
-            int value = req.getUrgency();
+            ServiceRequest request = requests.get(i);
+            int cost = calculateOperationalCost(request);
+            if (cost == Integer.MAX_VALUE) cost = capacity + 1;
+
+            // Urgency 1 is more valuable than urgency 5.
+            int value = Math.max(1, 6 - request.getUrgency());
             weights.add(cost);
             values.add(value);
         }
 
         Knapsack.Result result = Knapsack.solveDetailed(weights, values, capacity);
-
-        DynamicArray<ServiceRequest> selected = new DynamicArray<>();
         for (int i = 0; i < result.getSelectedIndices().size(); i++) {
             int index = result.getSelectedIndices().get(i);
             selected.add(requests.get(index));
@@ -65,41 +102,45 @@ public class OptimizationService {
         return selected;
     }
 
+    public DynamicArray<ServiceRequest> optimizeUnderConstraint(
+            DynamicArray<ServiceRequest> requests,
+            Resource resource) {
 
-     // Chooses between Greedy and DP based on problem size and constraints.
+        if (requests == null || resource == null) return new DynamicArray<>();
 
-    public DynamicArray<ServiceRequest> optimizeUnderConstraint(DynamicArray<ServiceRequest> requests, Resource resource) {
-        int n = requests.size();
-        int capacity = resource.getCapacity();
-
-        if (n <= 10 && capacity > 100) {
-            System.out.println("Using Greedy optimization...");
+        if (requests.size() <= 10) {
             return allocateResources(requests, resource);
-        } else {
-            System.out.println("Using Dynamic Programming optimization...");
-            return selectRequests(requests, capacity);
         }
+        return selectRequests(requests, resource.getCapacity());
     }
 
+    private int calculateOperationalCost(Resource resource, ServiceRequest request) {
+        int toSource = routingService.findShortestDistance(
+                resource.getHomeLocation(), request.getSource());
+        int sourceToDestination = routingService.findShortestDistance(
+                request.getSource(), request.getDestination());
 
-     // Demonstrates a case where Greedy fails compared to DP.
+        if (toSource == Integer.MAX_VALUE || sourceToDestination == Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
 
-    public void demonstrateGreedyFailure() {
-        DynamicArray<ServiceRequest> requests = new DynamicArray<>();
-        requests.add(new ServiceRequest(1, 0, 50, "Delivery", 60, "08:00", "10:00", "Pending"));
-        requests.add(new ServiceRequest(2, 0, 50, "Delivery", 100, "08:05", "10:30", "Pending"));
-        requests.add(new ServiceRequest(3, 0, 25, "Delivery", 100, "08:10", "09:30", "Pending"));
+        // Graph weights are distance * 100. Convert to whole distance units.
+        long scaled = (long) toSource + sourceToDestination;
+        long distance = (scaled + 99L) / 100L;
+        return distance >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) distance;
+    }
 
-        Resource resource = new Resource(1, "Truck", 0, 75, "Available");
+    private int calculateOperationalCost(ServiceRequest request) {
+        int sourceToDestination = routingService.findShortestDistance(
+                request.getSource(), request.getDestination());
 
-        DynamicArray<ServiceRequest> greedyResult = allocateResources(requests, resource);
-        System.out.println("Greedy selected: " + greedyResult);
+        if (sourceToDestination == Integer.MAX_VALUE) return Integer.MAX_VALUE;
+        return (sourceToDestination + 99) / 100;
+    }
 
-        DynamicArray<ServiceRequest> dpResult = selectRequests(requests, resource.getCapacity());
-        System.out.println("DP selected: " + dpResult);
-
-        System.out.println("Greedy picked only one request with urgency=100.");
-        System.out.println("DP picked two requests with combined urgency=200.");
-        System.out.println("=> Greedy fails because it ignores combinations that yield higher total value.");
+    private void requireRoutingService() {
+        if (routingService == null) {
+            throw new IllegalStateException("RoutingService must be configured before optimization.");
+        }
     }
 }

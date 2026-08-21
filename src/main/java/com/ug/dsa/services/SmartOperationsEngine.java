@@ -6,7 +6,9 @@ import com.ug.dsa.datastructures.HashTable;
 import com.ug.dsa.datastructures.Heap;
 import com.ug.dsa.algorithms.BFS;
 import com.ug.dsa.algorithms.Dijkstra;
+import com.ug.dsa.algorithms.DFS;
 import com.ug.dsa.algorithms.Kruskal;
+import com.ug.dsa.algorithms.Prim;
 import com.ug.dsa.models.AlgorithmRun;
 import com.ug.dsa.models.AuditEvent;
 import com.ug.dsa.models.Location;
@@ -40,8 +42,8 @@ public class SmartOperationsEngine {
 
     // ── Services ──────────────────────────────────────────────────────────────
     private final DataLoaderService   dataLoader;
-    private final SchedulingService   scheduler;
-    private final IndexingService     indexer;
+    private SchedulingService   scheduler;
+    private IndexingService     indexer;
     private       RoutingService      router;
     private final OptimizationService optimizer;
 
@@ -50,7 +52,7 @@ public class SmartOperationsEngine {
     private int nextAlgoRunId  = 500;
 
     private static final DateTimeFormatter TIMESTAMP_FMT =
-        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     // =========================================================================
     //  Construction
@@ -75,35 +77,24 @@ public class SmartOperationsEngine {
      * @return Human-readable summary line.
      */
     public String loadOrReloadData() {
-        // Load from DB / CSV
         String summary = dataLoader.loadAll();
 
-        // Re-initialise router with fresh graph + maps
-        Graph                        graph   = dataLoader.getNetworkGraph();
-        HashTable<Integer, Integer>  idToIdx = dataLoader.getLocationIdToIndex();
+        // Rebuild state on every reload so queues and indexes do not contain
+        // references to the previous dataset.
+        this.scheduler = new SchedulingService();
+        this.indexer = new IndexingService();
+
+        Graph graph = dataLoader.getNetworkGraph();
+        HashTable<Integer, Integer> idToIdx = dataLoader.getLocationIdToIndex();
         HashTable<Integer, Location> idxToLoc = dataLoader.getIndexToLocation();
         this.router = new RoutingService(graph, idToIdx, idxToLoc);
+        this.optimizer.setRoutingService(this.router);
 
-        // Populate indexing service
-        DynamicArray<Location>       locs  = dataLoader.getLocations();
-        DynamicArray<ServiceRequest> reqs  = dataLoader.getServiceRequests();
-        DynamicArray<Resource>       res   = dataLoader.getResources();
+        // DataLoader bridges the loaded models into the custom index structures.
+        dataLoader.loadIntoIndexes(indexer);
 
-        for (int i = 0; i < locs.size(); i++)  indexer.indexLocation(locs.get(i));
-        for (int i = 0; i < reqs.size(); i++)  indexer.indexRequest(reqs.get(i));
-        for (int i = 0; i < res.size(); i++)   indexer.indexResource(res.get(i));
-
-        // Seed scheduling queues with PENDING requests (up to first 50)
-        int seeded = 0;
-        for (int i = 0; i < reqs.size() && seeded < 50; i++) {
-            ServiceRequest r = reqs.get(i);
-            if ("PENDING".equals(r.getStatus())) {
-                scheduler.scheduleFIFO(r);
-                scheduler.scheduleByPriority(r, r.getUrgency());
-                seeded++;
-            }
-        }
-
+        // Requests are intentionally not preloaded into every queue. The user
+        // chooses FIFO, priority, urgent deque, or circular scheduling explicitly.
         return summary;
     }
 
@@ -162,8 +153,8 @@ public class SmartOperationsEngine {
                         default:
                             // search across all text fields
                             match = String.valueOf(r.getRequestId()).equals(lv)
-                                 || (r.getCategory() != null && r.getCategory().toLowerCase().contains(lv))
-                                 || (r.getStatus() != null && r.getStatus().toLowerCase().contains(lv));
+                                    || (r.getCategory() != null && r.getCategory().toLowerCase().contains(lv))
+                                    || (r.getStatus() != null && r.getStatus().toLowerCase().contains(lv));
                     }
                     if (match) results.add(r);
                 }
@@ -231,6 +222,7 @@ public class SmartOperationsEngine {
         long start = System.nanoTime();
 
         DynamicArray<Location> path = router.findShortestRoute(srcLocationId, destLocationId);
+        int scaledDistance = router.findShortestDistance(srcLocationId, destLocationId);
 
         long elapsed = System.nanoTime() - start;
         recordAlgoRun("Dijkstra", dataLoader.getLocations().size(), elapsed);
@@ -252,6 +244,13 @@ public class SmartOperationsEngine {
             }
             if (i < path.size() - 1) sb.append(" → ");
         }
+        if (path.isEmpty()) {
+            sb.append("\n  No route exists between the selected locations.");
+        } else if (scaledDistance != Integer.MAX_VALUE) {
+            sb.append("\n  Shortest distance: ")
+                    .append(String.format("%.2f", scaledDistance / 100.0))
+                    .append(" distance units");
+        }
         sb.append("\n  Algorithm: Dijkstra | Time: ").append(formatNs(elapsed));
         return sb.toString();
     }
@@ -269,6 +268,33 @@ public class SmartOperationsEngine {
         recordAlgoRun("BFS", dataLoader.getLocations().size(), elapsed);
 
         return reachable;
+    }
+
+    /** Runs DFS from a starting location. */
+    public DynamicArray<Location> findDepthFirstLocations(int startLocationId) {
+        requireRouter();
+        long start = System.nanoTime();
+        DynamicArray<Location> result = router.depthFirstLocations(startLocationId);
+        recordAlgoRun("DFS", dataLoader.getLocations().size(), System.nanoTime() - start);
+        return result;
+    }
+
+    /** Builds the campus minimum network using Prim's algorithm. */
+    public DynamicArray<Road> buildMinimumNetworkPrim() {
+        requireRouter();
+        long start = System.nanoTime();
+        DynamicArray<Road> result = router.buildMinimumNetworkPrim();
+        recordAlgoRun("Prim MST", dataLoader.getNetworkGraph().getNumEdges(), System.nanoTime() - start);
+        return result;
+    }
+
+    /** Builds the campus minimum network using Kruskal's algorithm. */
+    public DynamicArray<Road> buildMinimumNetworkKruskal() {
+        requireRouter();
+        long start = System.nanoTime();
+        DynamicArray<Road> result = router.buildMinimumNetwork();
+        recordAlgoRun("Kruskal MST", dataLoader.getNetworkGraph().getNumEdges(), System.nanoTime() - start);
+        return result;
     }
 
     // =========================================================================
@@ -322,15 +348,15 @@ public class SmartOperationsEngine {
         String ts = LocalDateTime.now().format(TIMESTAMP_FMT);
         if (greedyResult.size() > 0) {
             logAudit(AuditEvent.EventType.RESOURCE_ALLOCATED,
-                greedyResult.get(0).getRequestId(), ts,
-                "Greedy allocated resource " + resource.getResourceId() + " to " + greedyResult.size() + " request(s)");
+                    greedyResult.get(0).getRequestId(), ts,
+                    "Greedy allocated resource " + resource.getResourceId() + " to " + greedyResult.size() + " request(s)");
         }
 
         StringBuilder sb = new StringBuilder();
         sb.append("  Pending requests evaluated : ").append(pendingRequests.size()).append("\n");
         sb.append("  Resource used              : ").append(resource.getType())
-          .append(" (ID=").append(resource.getResourceId())
-          .append(", capacity=").append(resource.getCapacity()).append(")\n");
+                .append(" (ID=").append(resource.getResourceId())
+                .append(", capacity=").append(resource.getCapacity()).append(")\n");
         sb.append("\n  --- Greedy Result ---\n");
         sb.append("  Requests selected : ").append(greedyResult.size()).append("\n");
         sb.append("  Time              : ").append(formatNs(greedyTime)).append("\n");
@@ -416,6 +442,15 @@ public class SmartOperationsEngine {
             sb.append(String.format("  %-42s n=%-6d  %s%n", "BFS", graph.getNumVertices(), formatNs(elapsed)));
         }
 
+        // -- DFS benchmark --
+        if (graph != null && graph.getNumVertices() > 0) {
+            long t = System.nanoTime();
+            DFS.iterative(graph, 0);
+            long elapsed = System.nanoTime() - t;
+            recordAlgoRun("DFS", graph.getNumVertices(), elapsed);
+            sb.append(String.format("  %-42s n=%-6d  %s%n", "DFS", graph.getNumVertices(), formatNs(elapsed)));
+        }
+
         // -- Dijkstra benchmark --
         if (graph != null && graph.getNumVertices() > 1) {
             long t = System.nanoTime();
@@ -425,6 +460,15 @@ public class SmartOperationsEngine {
             long elapsed = System.nanoTime() - t;
             recordAlgoRun("Dijkstra", graph.getNumVertices(), elapsed);
             sb.append(String.format("  %-42s n=%-6d  %s%n", "Dijkstra", graph.getNumVertices(), formatNs(elapsed)));
+        }
+
+        // -- Prim benchmark --
+        if (graph != null && graph.getNumVertices() > 0) {
+            long t = System.nanoTime();
+            Prim.findMST(graph);
+            long elapsed = System.nanoTime() - t;
+            recordAlgoRun("Prim MST", graph.getNumEdges(), elapsed);
+            sb.append(String.format("  %-42s n=%-6d  %s%n", "Prim MST", graph.getNumEdges(), formatNs(elapsed)));
         }
 
         // -- Kruskal benchmark --
@@ -497,8 +541,8 @@ public class SmartOperationsEngine {
             return "  ✗ Request #" + requestId + " not found.";
         }
         sb.append("      Found: ").append(request.getCategory())
-          .append(" | Urgency=").append(request.getUrgency())
-          .append(" | Status=").append(request.getStatus()).append("\n");
+                .append(" | Urgency=").append(request.getUrgency())
+                .append(" | Status=").append(request.getStatus()).append("\n");
         logAudit(AuditEvent.EventType.REQUEST_CREATED, requestId, ts, "Request validated");
 
         // Step 2: Schedule
@@ -522,9 +566,9 @@ public class SmartOperationsEngine {
         } else {
             scheduler.assignResource(request, resource);
             sb.append("      Assigned: ").append(resource.getType())
-              .append(" (ID=").append(resource.getResourceId()).append(")\n");
+                    .append(" (ID=").append(resource.getResourceId()).append(")\n");
             logAudit(AuditEvent.EventType.RESOURCE_ALLOCATED, requestId, ts,
-                "Resource " + resource.getResourceId() + " assigned");
+                    "Resource " + resource.getResourceId() + " assigned");
         }
 
         // Step 4: Find route
@@ -535,7 +579,7 @@ public class SmartOperationsEngine {
             sb.append(route.replace("  ", "      ")).append("\n");
         } catch (Exception e) {
             sb.append("      Route: (source=").append(request.getSource())
-              .append(" → dest=").append(request.getDestination()).append(")\n");
+                    .append(" → dest=").append(request.getDestination()).append(")\n");
         }
 
         // Step 5: Mark complete and log
@@ -581,8 +625,8 @@ public class SmartOperationsEngine {
         for (int i = 0; i < shown; i++) {
             ServiceRequest r = list.get(i);
             sb.append(String.format("    #%-4d %-15s urgency=%-2d  src=%-3d → dest=%-3d  %s%n",
-                r.getRequestId(), r.getCategory(), r.getUrgency(),
-                r.getSource(), r.getDestination(), r.getStatus()));
+                    r.getRequestId(), r.getCategory(), r.getUrgency(),
+                    r.getSource(), r.getDestination(), r.getStatus()));
         }
         if (list.size() > max) {
             sb.append("    ... and ").append(list.size() - max).append(" more.\n");
