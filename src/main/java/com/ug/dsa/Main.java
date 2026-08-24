@@ -175,7 +175,7 @@ public class Main {
         System.out.println();
 
         // Dispatch a few to show in action
-        int dispatch = readInt("  Dispatch how many requests now? (0 to skip): ", 0, 50);
+        int dispatch = readInt("  Dispatch how many requests now? (0 to skip): ", 0, 9999);
         if (dispatch > 0) {
             System.out.println();
             printRequestTableHeader();

@@ -331,6 +331,11 @@ public class SmartOperationsEngine {
             resource = new Resource(99, "VIRTUAL_RESOURCE", 1, capacity, "AVAILABLE");
         }
 
+        // Use the supplied capacity if it is valid.
+        if (capacity > 0) {
+            resource.setCapacity(capacity);
+        }
+
         // Greedy
         long t1 = System.nanoTime();
         DynamicArray<ServiceRequest> greedyResult = optimizer.allocateResources(pendingRequests, resource);
@@ -338,7 +343,7 @@ public class SmartOperationsEngine {
 
         // DP (Knapsack)
         long t2 = System.nanoTime();
-        DynamicArray<ServiceRequest> dpResult = optimizer.selectRequests(pendingRequests, capacity);
+        DynamicArray<ServiceRequest> dpResult = optimizer.selectRequests(pendingRequests, resource);
         long dpTime = System.nanoTime() - t2;
 
         recordAlgoRun("GreedyAllocation", pendingRequests.size(), greedyTime);
@@ -367,14 +372,29 @@ public class SmartOperationsEngine {
         sb.append("  Time              : ").append(formatNs(dpTime)).append("\n");
         printRequestList(sb, dpResult, 5);
 
-        int diff = dpResult.size() - greedyResult.size();
-        if (diff > 0) {
-            sb.append("\n  ★ DP selected ").append(diff).append(" more request(s) than Greedy.");
-            sb.append("\n  ⇒ Greedy failure: it ignores combinations that yield higher total value.");
-        } else if (diff == 0) {
-            sb.append("\n  Both algorithms selected the same number of requests.");
+
+        // -------------------------------------------------
+        // COMPARISON
+        // -------------------------------------------------
+
+        int difference = dpResult.size() - greedyResult.size();
+        sb.append("\n  --- Comparison ---\n");
+        if (difference > 0) {
+            sb.append("  Knapsack selected ")
+                    .append(difference)
+                    .append(" more request(s).\n");
+            sb.append("  Knapsack found a better combination of requests under the capacity constraint.");
+
+        } else if (difference == 0) {
+            sb.append("  Both algorithms selected ")
+                    .append(greedyResult.size())
+                    .append(" request(s).");
+
         } else {
-            sb.append("\n  Greedy selected ").append(-diff).append(" more request(s) this time.");
+            sb.append("  Greedy selected ")
+                    .append(-difference)
+                    .append(" more request(s) in this dataset.");
+
         }
         return sb.toString();
     }
@@ -497,7 +517,7 @@ public class SmartOperationsEngine {
             DynamicArray<ServiceRequest> sample = new DynamicArray<>();
             for (int i = 0; i < Math.min(50, n); i++) sample.add(requests.get(i));
             long t = System.nanoTime();
-            optimizer.selectRequests(sample, 500);
+            optimizer.selectRequests(sample, new Resource());
             long elapsed = System.nanoTime() - t;
             recordAlgoRun("Knapsack", sample.size(), elapsed);
             sb.append(String.format("  %-42s n=%-6d  %s%n", "Knapsack", sample.size(), formatNs(elapsed)));

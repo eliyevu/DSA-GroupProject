@@ -43,17 +43,62 @@ public class SchedulingService {
     // =========================================================================
 
     /**
-     * Enqueues a service request into the standard FIFO queue.
-     * Sets status to "SCHEDULED_FIFO" if currently null or empty.
+     * Schedules a service request using First-In-First-Out (FIFO).
+     *
+     * FIFO is determined by the request's timeSubmitted value.
+     * The request with the earliest submission time is processed first.
      */
     public void scheduleFIFO(ServiceRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("ServiceRequest cannot be null.");
         }
+
+        if (request.getTimeSubmitted() == null) {
+            throw new IllegalArgumentException(
+                    "ServiceRequest timeSubmitted cannot be null."
+            );
+        }
+
         if (request.getStatus() == null || request.getStatus().trim().isEmpty()) {
             request.setStatus("SCHEDULED_FIFO");
         }
-        fifoQueue.enqueue(request);
+        // If the queue is empty, add the request directly
+        if (fifoQueue.isEmpty()) {
+            fifoQueue.enqueue(request);
+            return;
+        }
+        Queue<ServiceRequest> tempQueue = new Queue<>();
+        boolean inserted = false;
+
+        while (!fifoQueue.isEmpty()) {
+
+            ServiceRequest current = fifoQueue.dequeue();
+
+            /*
+             * compareTo() result:
+             *
+             * < 0  -> request was submitted earlier
+             * = 0  -> same submission time
+             * > 0  -> request was submitted later
+             */
+            if (!inserted &&
+                    request.getTimeSubmitted()
+                            .compareTo(current.getTimeSubmitted()) < 0) {
+
+                tempQueue.enqueue(request);
+                inserted = true;
+            }
+            tempQueue.enqueue(current);
+        }
+        // Request was submitted later than all existing requests
+        if (!inserted) {
+            tempQueue.enqueue(request);
+        }
+
+        // Restore the FIFO queue
+        while (!tempQueue.isEmpty()) {
+            fifoQueue.enqueue(tempQueue.dequeue());
+        }
     }
 
     /**

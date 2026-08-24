@@ -7,14 +7,15 @@ import com.ug.dsa.models.Resource;
 import com.ug.dsa.models.ServiceRequest;
 
 /**
- * Resource allocation service.
- *
- * Greedy uses the custom Heap to process the most urgent requests first.
- * The cost is based on actual graph shortest-path distance rather than
- * subtracting arbitrary location IDs.
- *
- * Knapsack uses the same operational cost/value model for comparison.
- */
+ * Handles resource allocation using Greedy and 0/1 Knapsack optimization.
+ * Greedy:
+ * - Processes the most urgent requests first.
+ * - Accepts a request if its operational cost fits the remaining resource capacity.
+ * Knapsack:
+ * - Considers all possible combinations of requests.
+ * - Maximizes total urgency value without exceeding the same capacity.
+ * Both algorithms use the same operational cost:
+*/
 public class OptimizationService {
 
     private RoutingService routingService;
@@ -30,34 +31,50 @@ public class OptimizationService {
         this.routingService = routingService;
     }
 
-    /**
-     * Greedy resource allocation:
-     * 1. Put requests into the custom Min-Heap using urgency as priority.
-     * 2. Extract the most urgent request.
-     * 3. Accept it if its operational route cost fits the remaining capacity.
-     */
+    // Greedy resource allocation.
     public DynamicArray<ServiceRequest> allocateResources(
             DynamicArray<ServiceRequest> requests,
             Resource resource) {
 
         DynamicArray<ServiceRequest> selected = new DynamicArray<>();
-        if (requests == null || resource == null) return selected;
+
+        if (requests == null || resource == null || requests.isEmpty()) {
+            return selected;
+        }
+
         requireRoutingService();
 
         Heap<ServiceRequest> urgencyHeap = new Heap<>();
+
+        // Add only pending requests.
         for (int i = 0; i < requests.size(); i++) {
             ServiceRequest request = requests.get(i);
-            if (request == null) continue;
+
+            if (request == null) {
+                continue;
+            }
+
+            if (!"PENDING".equalsIgnoreCase(request.getStatus())) {
+                continue;
+            }
+
             urgencyHeap.insert(request, request.getUrgency());
         }
 
         int remainingCapacity = resource.getCapacity();
 
         while (!urgencyHeap.isEmpty()) {
+
             ServiceRequest request = urgencyHeap.extractMin();
+
             int cost = calculateOperationalCost(resource, request);
 
-            if (cost == Integer.MAX_VALUE) continue;
+            // No route exists.
+            if (cost == Integer.MAX_VALUE) {
+                continue;
+            }
+
+            // Allocate only if the resource has enough capacity.
             if (cost <= remainingCapacity) {
                 selected.add(request);
                 remainingCapacity -= cost;
@@ -67,80 +84,177 @@ public class OptimizationService {
         return selected;
     }
 
-    /**
-     * 0/1 Knapsack comparison using the same route cost and urgency value.
-     * Urgency 1 is treated as the highest value, so it receives the largest value.
-     */
+    //  0/1 Knapsack resource optimization.
     public DynamicArray<ServiceRequest> selectRequests(
             DynamicArray<ServiceRequest> requests,
-            int capacity) {
+            Resource resource) {
 
         DynamicArray<ServiceRequest> selected = new DynamicArray<>();
-        if (requests == null || requests.isEmpty() || capacity <= 0) return selected;
+
+        if (requests == null ||
+                resource == null ||
+                requests.isEmpty() ||
+                resource.getCapacity() <= 0) {
+            return selected;
+        }
+
         requireRoutingService();
 
-        DynamicArray<Integer> weights = new DynamicArray<>();
-        DynamicArray<Integer> values = new DynamicArray<>();
+        DynamicArray<ServiceRequest> eligibleRequests =
+                new DynamicArray<>();
+
+        DynamicArray<Integer> weights =
+                new DynamicArray<>();
+
+        DynamicArray<Integer> values =
+                new DynamicArray<>();
 
         for (int i = 0; i < requests.size(); i++) {
-            ServiceRequest request = requests.get(i);
-            int cost = calculateOperationalCost(request);
-            if (cost == Integer.MAX_VALUE) cost = capacity + 1;
 
-            // Urgency 1 is more valuable than urgency 5.
-            int value = Math.max(1, 6 - request.getUrgency());
+            ServiceRequest request = requests.get(i);
+
+            if (request == null) {
+                continue;
+            }
+
+            if (!"PENDING".equalsIgnoreCase(request.getStatus())) {
+                continue;
+            }
+
+            int cost = calculateOperationalCost(resource, request);
+
+            if (cost == Integer.MAX_VALUE) {
+                continue;
+            }
+
+            // Urgency 1 = highest value.
+            // Urgency 5 = lowest value.
+            int value = Math.max(
+                    1,
+                    6 - request.getUrgency()
+            );
+
+            eligibleRequests.add(request);
             weights.add(cost);
             values.add(value);
         }
 
-        Knapsack.Result result = Knapsack.solveDetailed(weights, values, capacity);
-        for (int i = 0; i < result.getSelectedIndices().size(); i++) {
-            int index = result.getSelectedIndices().get(i);
-            selected.add(requests.get(index));
+        if (eligibleRequests.isEmpty()) {
+            return selected;
+        }
+
+        Knapsack.Result result =
+                Knapsack.solveDetailed(
+                        weights,
+                        values,
+                        resource.getCapacity()
+                );
+
+        for (int i = 0;
+             i < result.getSelectedIndices().size();
+             i++) {
+
+            int index =
+                    result.getSelectedIndices().get(i);
+
+            if (index >= 0 &&
+                    index < eligibleRequests.size()) {
+
+                selected.add(
+                        eligibleRequests.get(index)
+                );
+            }
         }
 
         return selected;
     }
 
-    public DynamicArray<ServiceRequest> optimizeUnderConstraint(
+    // Compare Greedy and Knapsack without changing request status.
+    public AllocationComparison compareAlgorithms(
             DynamicArray<ServiceRequest> requests,
             Resource resource) {
 
-        if (requests == null || resource == null) return new DynamicArray<>();
+        DynamicArray<ServiceRequest> greedy =
+                allocateResources(requests, resource);
 
-        if (requests.size() <= 10) {
-            return allocateResources(requests, resource);
-        }
-        return selectRequests(requests, resource.getCapacity());
+        DynamicArray<ServiceRequest> knapsack =
+                selectRequests(requests, resource);
+
+        return new AllocationComparison(
+                greedy,
+                knapsack
+        );
     }
 
-    private int calculateOperationalCost(Resource resource, ServiceRequest request) {
-        int toSource = routingService.findShortestDistance(
-                resource.getHomeLocation(), request.getSource());
-        int sourceToDestination = routingService.findShortestDistance(
-                request.getSource(), request.getDestination());
+    // Calculates the actual operational cost
+    private int calculateOperationalCost(
+            Resource resource,
+            ServiceRequest request) {
 
-        if (toSource == Integer.MAX_VALUE || sourceToDestination == Integer.MAX_VALUE) {
+        int homeToSource =
+                routingService.findShortestDistance(
+                        resource.getHomeLocation(),
+                        request.getSource()
+                );
+
+        int sourceToDestination =
+                routingService.findShortestDistance(
+                        request.getSource(),
+                        request.getDestination()
+                );
+
+        if (homeToSource == Integer.MAX_VALUE ||
+                sourceToDestination == Integer.MAX_VALUE) {
+
             return Integer.MAX_VALUE;
         }
 
-        // Graph weights are distance * 100. Convert to whole distance units.
-        long scaled = (long) toSource + sourceToDestination;
-        long distance = (scaled + 99L) / 100L;
-        return distance >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) distance;
-    }
+        long scaledDistance =
+                (long) homeToSource +
+                        sourceToDestination;
 
-    private int calculateOperationalCost(ServiceRequest request) {
-        int sourceToDestination = routingService.findShortestDistance(
-                request.getSource(), request.getDestination());
+        // Convert graph's scaled distance back to whole units.
+        long distance =
+                (scaledDistance + 99L) / 100L;
 
-        if (sourceToDestination == Integer.MAX_VALUE) return Integer.MAX_VALUE;
-        return (sourceToDestination + 99) / 100;
+        if (distance >= Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+
+        return (int) distance;
     }
 
     private void requireRoutingService() {
+
         if (routingService == null) {
-            throw new IllegalStateException("RoutingService must be configured before optimization.");
+            throw new IllegalStateException(
+                    "RoutingService must be configured before optimization."
+            );
+        }
+    }
+
+    /**
+     * Simple result object used when comparing algorithms.
+     */
+    public static class AllocationComparison {
+
+        private final DynamicArray<ServiceRequest> greedyResult;
+        private final DynamicArray<ServiceRequest> knapsackResult;
+
+        public AllocationComparison(
+                DynamicArray<ServiceRequest> greedyResult,
+                DynamicArray<ServiceRequest> knapsackResult) {
+
+            this.greedyResult = greedyResult;
+            this.knapsackResult = knapsackResult;
+        }
+
+        public DynamicArray<ServiceRequest> getGreedyResult() {
+            return greedyResult;
+        }
+
+        public DynamicArray<ServiceRequest> getKnapsackResult() {
+            return knapsackResult;
         }
     }
 }
