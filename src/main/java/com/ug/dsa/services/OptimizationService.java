@@ -8,14 +8,16 @@ import com.ug.dsa.models.ServiceRequest;
 
 /**
  * Handles resource allocation using Greedy and 0/1 Knapsack optimization.
- * Greedy:
- * - Processes the most urgent requests first.
- * - Accepts a request if its operational cost fits the remaining resource capacity.
- * Knapsack:
- * - Considers all possible combinations of requests.
- * - Maximizes total urgency value without exceeding the same capacity.
- * Both algorithms use the same operational cost:
-*/
+ *
+ * Resource allocation considers TWO important constraints:
+ *
+ * 1. Resource TYPE:
+ *    The resource must be suitable for the service request category.
+ *
+ * 2. Resource CAPACITY:
+ *    The operational cost of the selected requests must fit within
+ *    the available capacity of the resource.
+ */
 public class OptimizationService {
 
     private RoutingService routingService;
@@ -31,30 +33,65 @@ public class OptimizationService {
         this.routingService = routingService;
     }
 
-    // Greedy resource allocation.
+    // =========================================================================
+    // GREEDY RESOURCE ALLOCATION
+    // =========================================================================
+
+    /**
+     * Greedy allocation.
+     *
+     * Processes the most urgent compatible pending requests first.
+     * A request is selected only when:
+     *
+     * 1. The request is PENDING.
+     * 2. The resource type is compatible with the request category.
+     * 3. A route exists.
+     * 4. The operational cost fits the remaining capacity.
+     */
     public DynamicArray<ServiceRequest> allocateResources(
             DynamicArray<ServiceRequest> requests,
             Resource resource) {
 
         DynamicArray<ServiceRequest> selected = new DynamicArray<>();
 
-        if (requests == null || resource == null || requests.isEmpty()) {
+        if (requests == null ||
+                resource == null ||
+                requests.isEmpty()) {
+
             return selected;
         }
 
         requireRoutingService();
 
+        /*
+         * Do not allocate a resource that is not available.
+         */
+        if (!"AVAILABLE".equalsIgnoreCase(
+                resource.getAvailabilityStatus())) {
+
+            return selected;
+        }
+
+        /*
+         * Priority queue based on urgency.
+         * Urgency 1 = highest priority.
+         */
         Heap<ServiceRequest> urgencyHeap = new Heap<>();
 
-        // Add only pending requests.
         for (int i = 0; i < requests.size(); i++) {
+
             ServiceRequest request = requests.get(i);
 
             if (request == null) {
                 continue;
             }
 
-            if (!"PENDING".equalsIgnoreCase(request.getStatus())) {
+            if (!"PENDING".equalsIgnoreCase(
+                    request.getStatus())) {
+                continue;
+            }
+
+            if (!isResourceCompatible(resource, request)) {
                 continue;
             }
 
@@ -69,12 +106,10 @@ public class OptimizationService {
 
             int cost = calculateOperationalCost(resource, request);
 
-            // No route exists.
             if (cost == Integer.MAX_VALUE) {
                 continue;
             }
 
-            // Allocate only if the resource has enough capacity.
             if (cost <= remainingCapacity) {
                 selected.add(request);
                 remainingCapacity -= cost;
@@ -84,21 +119,39 @@ public class OptimizationService {
         return selected;
     }
 
-    //  0/1 Knapsack resource optimization.
+    // =========================================================================
+    // 0/1 KNAPSACK RESOURCE OPTIMIZATION
+    // =========================================================================
+
+    /**
+     * Uses 0/1 Knapsack to select the best combination of
+     * compatible pending requests.
+     *
+     * Resource TYPE is checked first.
+     * Resource CAPACITY is then used as the optimization constraint.
+     */
     public DynamicArray<ServiceRequest> selectRequests(
             DynamicArray<ServiceRequest> requests,
             Resource resource) {
 
-        DynamicArray<ServiceRequest> selected = new DynamicArray<>();
+        DynamicArray<ServiceRequest> selected =
+                new DynamicArray<>();
 
         if (requests == null ||
                 resource == null ||
                 requests.isEmpty() ||
                 resource.getCapacity() <= 0) {
+
             return selected;
         }
 
         requireRoutingService();
+
+        if (!"AVAILABLE".equalsIgnoreCase(
+                resource.getAvailabilityStatus())) {
+
+            return selected;
+        }
 
         DynamicArray<ServiceRequest> eligibleRequests =
                 new DynamicArray<>();
@@ -111,13 +164,20 @@ public class OptimizationService {
 
         for (int i = 0; i < requests.size(); i++) {
 
-            ServiceRequest request = requests.get(i);
+            ServiceRequest request =
+                    requests.get(i);
 
             if (request == null) {
                 continue;
             }
 
-            if (!"PENDING".equalsIgnoreCase(request.getStatus())) {
+            if (!"PENDING".equalsIgnoreCase(
+                    request.getStatus())) {
+                continue;
+            }
+
+
+            if (!isResourceCompatible(resource, request)) {
                 continue;
             }
 
@@ -127,15 +187,14 @@ public class OptimizationService {
                 continue;
             }
 
-            // Urgency 1 = highest value.
-            // Urgency 5 = lowest value.
+            eligibleRequests.add(request);
+            weights.add(cost);
+
             int value = Math.max(
                     1,
                     6 - request.getUrgency()
             );
 
-            eligibleRequests.add(request);
-            weights.add(cost);
             values.add(value);
         }
 
@@ -143,6 +202,9 @@ public class OptimizationService {
             return selected;
         }
 
+        /*
+         * Optimize only compatible requests.
+         */
         Knapsack.Result result =
                 Knapsack.solveDetailed(
                         weights,
@@ -150,6 +212,9 @@ public class OptimizationService {
                         resource.getCapacity()
                 );
 
+        /*
+         * Convert selected indexes back into requests.
+         */
         for (int i = 0;
              i < result.getSelectedIndices().size();
              i++) {
@@ -169,16 +234,29 @@ public class OptimizationService {
         return selected;
     }
 
-    // Compare Greedy and Knapsack without changing request status.
+    // =========================================================================
+    // COMPARE ALGORITHMS
+    // =========================================================================
+
+    /**
+     * Compares Greedy and Knapsack using the SAME compatible
+     * requests and resource.
+     */
     public AllocationComparison compareAlgorithms(
             DynamicArray<ServiceRequest> requests,
             Resource resource) {
 
         DynamicArray<ServiceRequest> greedy =
-                allocateResources(requests, resource);
+                allocateResources(
+                        requests,
+                        resource
+                );
 
         DynamicArray<ServiceRequest> knapsack =
-                selectRequests(requests, resource);
+                selectRequests(
+                        requests,
+                        resource
+                );
 
         return new AllocationComparison(
                 greedy,
@@ -186,7 +264,98 @@ public class OptimizationService {
         );
     }
 
-    // Calculates the actual operational cost
+    // =========================================================================
+    // RESOURCE TYPE MATCHING
+    // =========================================================================
+
+    /**
+     * Determines whether a resource can handle a service request.
+     */
+    private boolean isResourceCompatible(
+            Resource resource,
+            ServiceRequest request) {
+
+        if (resource == null || request == null) {
+            return false;
+        }
+
+        String resourceType =
+                resource.getType();
+
+        String requestCategory =
+                request.getCategory();
+
+        if (resourceType == null ||
+                requestCategory == null) {
+
+            return false;
+        }
+
+        resourceType =
+                resourceType.trim().toUpperCase();
+
+        requestCategory =
+                requestCategory.trim().toUpperCase();
+
+        String resourceCategory =
+                resourceType.contains("_")
+                        ? resourceType.substring(
+                        0,
+                        resourceType.indexOf("_")
+                )
+                        : resourceType;
+
+        /*
+         * Direct match.
+         */
+        if (resourceCategory.equals(
+                requestCategory)) {
+
+            return true;
+        }
+
+        /*
+         * Special resource mappings.
+         */
+
+        // GENERATOR handles electrical requests.
+        if ("GENERATOR".equals(resourceCategory)
+                && "ELECTRICAL".equals(requestCategory)) {
+
+            return true;
+        }
+
+        // SHUTTLE handles transport requests.
+        if ("SHUTTLE".equals(resourceCategory)
+                && "TRANSPORT".equals(requestCategory)) {
+
+            return true;
+        }
+
+        /*
+         * Utility trucks can support general maintenance.
+         */
+        if ("UTILITY".equals(resourceCategory)
+                && "MAINTENANCE".equals(requestCategory)) {
+
+            return true;
+        }
+
+        /*
+         * No compatible resource.
+         */
+        return false;
+    }
+
+    // =========================================================================
+    // OPERATIONAL COST
+    // =========================================================================
+
+    /**
+     * Calculates the operational cost of sending the resource
+     * from its home location to the request source and then
+     * from the source to the destination.
+     */
     private int calculateOperationalCost(
             Resource resource,
             ServiceRequest request) {
@@ -203,6 +372,9 @@ public class OptimizationService {
                         request.getDestination()
                 );
 
+        /*
+         * No valid route.
+         */
         if (homeToSource == Integer.MAX_VALUE ||
                 sourceToDestination == Integer.MAX_VALUE) {
 
@@ -213,7 +385,10 @@ public class OptimizationService {
                 (long) homeToSource +
                         sourceToDestination;
 
-        // Convert graph's scaled distance back to whole units.
+        /*
+         * Convert graph's scaled distance
+         * back into whole distance units.
+         */
         long distance =
                 (scaledDistance + 99L) / 100L;
 
@@ -224,17 +399,27 @@ public class OptimizationService {
         return (int) distance;
     }
 
+    // =========================================================================
+    // VALIDATION
+    // =========================================================================
+
     private void requireRoutingService() {
 
         if (routingService == null) {
+
             throw new IllegalStateException(
                     "RoutingService must be configured before optimization."
             );
         }
     }
 
+    // =========================================================================
+    // RESULT OBJECT
+    // =========================================================================
+
     /**
-     * Simple result object used when comparing algorithms.
+     * Simple result object used when comparing
+     * Greedy and Knapsack.
      */
     public static class AllocationComparison {
 

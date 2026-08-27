@@ -302,13 +302,21 @@ public class SmartOperationsEngine {
     // =========================================================================
 
     /**
-     * Full end-to-end workflow: picks first available resource, runs Greedy vs DP,
-     * logs audit events, returns result string.
+     * Full end-to-end workflow, now with TWO optimization layers:
+     *
+     *   Outer layer  : which AVAILABLE, type-compatible resource should be
+     *                  used at all? Every candidate is scored by running
+     *                  the exact-optimal Knapsack against it and comparing
+     *                  total value achieved; the best one wins.
+     *   Inner layer  : given that winning resource, which subset of pending
+     *                  requests should it take (Greedy vs Knapsack/DP)?
+     *
+     * Logs audit events, returns a result string covering both layers.
      */
     public String optimizeResourceAllocation(int capacity) {
         DynamicArray<ServiceRequest> pendingRequests = new DynamicArray<>();
         DynamicArray<ServiceRequest> all = dataLoader.getServiceRequests();
-        for (int i = 0; i < all.size() && pendingRequests.size() < 20; i++) {
+        for (int i = 0; i < all.size() && pendingRequests.size() < 50; i++) {
             if ("PENDING".equals(all.get(i).getStatus())) {
                 pendingRequests.add(all.get(i));
             }
@@ -318,32 +326,107 @@ public class SmartOperationsEngine {
             return "  No pending service requests to optimize.";
         }
 
-        // Find an available resource
-        Resource resource = null;
-        DynamicArray<Resource> resources = dataLoader.getResources();
-        for (int i = 0; i < resources.size(); i++) {
-            if ("AVAILABLE".equals(resources.get(i).getAvailabilityStatus())) {
-                resource = resources.get(i);
-                break;
-            }
-        }
-        if (resource == null) {
+        StringBuilder sb = new StringBuilder();
+
+        // ---------------------------------------------------------------
+        // OUTER OPTIMIZATION: scan every AVAILABLE, type-compatible
+        // resource and keep whichever one the optimal Knapsack solution
+        // achieves the highest total value on. This replaces "whichever
+        // resource matches first" with an actual best-of comparison.
+        // ---------------------------------------------------------------
+        DynamicArray<Resource> candidates = findCompatibleAvailableResources(pendingRequests);
+
+        Resource resource;
+        DynamicArray<ServiceRequest> dpResult;
+
+        if (candidates.isEmpty()) {
             resource = new Resource(99, "VIRTUAL_RESOURCE", 1, capacity, "AVAILABLE");
+            dpResult = optimizer.selectRequests(pendingRequests, resource);
+            sb.append("  Note: no AVAILABLE resource matched any pending request's category, ")
+                    .append("so a placeholder resource was used instead.\n\n");
+        } else {
+            sb.append("  --- Resource Scan (outer optimization) ---\n");
+
+            // Temporarily apply the requested capacity to every candidate so
+            // they are compared on equal terms; only the WINNER keeps this
+            // capacity afterwards, everyone else is restored below so the
+            // scan does not leave side effects on resources we didn't pick.
+            int[] originalCapacities = new int[candidates.size()];
+            for (int i = 0; i < candidates.size(); i++) {
+                originalCapacities[i] = candidates.get(i).getCapacity();
+                if (capacity > 0) {
+                    candidates.get(i).setCapacity(capacity);
+                }
+            }
+
+            Resource bestResource = null;
+            DynamicArray<ServiceRequest> bestResult = null;
+            int bestValue = -1;
+
+            long scanStart = System.nanoTime();
+            for (int i = 0; i < candidates.size(); i++) {
+                Resource candidate = candidates.get(i);
+                DynamicArray<ServiceRequest> result = optimizer.selectRequests(pendingRequests, candidate);
+                int value = totalValue(result);
+
+                sb.append(String.format("    R%-4d %-18s capacity=%-5d -> %d request(s), total value=%d%s%n",
+                        candidate.getResourceId(), candidate.getType(), candidate.getCapacity(),
+                        result.size(), value, value > bestValue ? "  <- best so far" : ""));
+
+                if (value > bestValue) {
+                    bestValue = value;
+                    bestResource = candidate;
+                    bestResult = result;
+                }
+            }
+            long scanElapsed = System.nanoTime() - scanStart;
+            recordAlgoRun("Knapsack-ResourceScan", candidates.size(), scanElapsed);
+
+            // Restore every candidate's original capacity except the winner.
+            for (int i = 0; i < candidates.size(); i++) {
+                if (candidates.get(i) != bestResource) {
+                    candidates.get(i).setCapacity(originalCapacities[i]);
+                }
+            }
+
+            resource = bestResource;
+            dpResult = bestResult;
+
+            sb.append("  Resources scanned   : ").append(candidates.size()).append("\n");
+            sb.append("  Scan time           : ").append(formatNs(scanElapsed)).append("\n");
+            sb.append("  Best resource chosen: R").append(resource.getResourceId())
+                    .append(" (").append(resource.getType())
+                    .append("), total value=").append(bestValue).append("\n\n");
         }
 
-        // Use the supplied capacity if it is valid.
-        if (capacity > 0) {
-            resource.setCapacity(capacity);
+        // How many of the pending requests actually share this resource's category
+        int categoryMatchCount = 0;
+        if (!"VIRTUAL_RESOURCE".equals(resource.getType())) {
+            String resourceType = resource.getType() == null ? "" : resource.getType().trim().toUpperCase();
+            String baseType = resourceType.contains("_")
+                    ? resourceType.substring(0, resourceType.indexOf('_'))
+                    : resourceType;
+            for (int i = 0; i < pendingRequests.size(); i++) {
+                String category = pendingRequests.get(i).getCategory();
+                if (category != null && baseType.equals(category.trim().toUpperCase())) {
+                    categoryMatchCount++;
+                }
+            }
         }
+
+        // ---------------------------------------------------------------
+        // INNER OPTIMIZATION: given the winning resource, Greedy vs
+        // Knapsack/DP on which requests it should take (as before).
+        // ---------------------------------------------------------------
 
         // Greedy
         long t1 = System.nanoTime();
         DynamicArray<ServiceRequest> greedyResult = optimizer.allocateResources(pendingRequests, resource);
         long greedyTime = System.nanoTime() - t1;
 
-        // DP (Knapsack)
+
         long t2 = System.nanoTime();
-        DynamicArray<ServiceRequest> dpResult = optimizer.selectRequests(pendingRequests, resource);
+        dpResult = optimizer.selectRequests(pendingRequests, resource);
         long dpTime = System.nanoTime() - t2;
 
         recordAlgoRun("GreedyAllocation", pendingRequests.size(), greedyTime);
@@ -357,11 +440,16 @@ public class SmartOperationsEngine {
                     "Greedy allocated resource " + resource.getResourceId() + " to " + greedyResult.size() + " request(s)");
         }
 
-        StringBuilder sb = new StringBuilder();
         sb.append("  Pending requests evaluated : ").append(pendingRequests.size()).append("\n");
         sb.append("  Resource used              : ").append(resource.getType())
                 .append(" (ID=").append(resource.getResourceId())
                 .append(", capacity=").append(resource.getCapacity()).append(")\n");
+        if (!"VIRTUAL_RESOURCE".equals(resource.getType())) {
+            sb.append("  Category-matching pending  : ").append(categoryMatchCount)
+                    .append(" of ").append(pendingRequests.size())
+                    .append(" (a ").append(resource.getType())
+                    .append(" cannot serve a request outside its own category)\n");
+        }
         sb.append("\n  --- Greedy Result ---\n");
         sb.append("  Requests selected : ").append(greedyResult.size()).append("\n");
         sb.append("  Time              : ").append(formatNs(greedyTime)).append("\n");
@@ -542,78 +630,378 @@ public class SmartOperationsEngine {
         return dataLoader.getAuditEvents();
     }
 
-    // =========================================================================
-    //  Full end-to-end workflow helper
-    // =========================================================================
+
+
+// =========================================================================
+//  REAL OPERATIONAL WORKFLOW
+// =========================================================================
 
     /**
-     * Demonstrates the complete workflow for a given service request ID:
-     * Validate → Schedule → Allocate → Route → Log.
+     * Runs the actual service-operation workflow.
      */
-    public String processServiceRequestWorkflow(int requestId) {
-        StringBuilder sb = new StringBuilder();
-        String ts = LocalDateTime.now().format(TIMESTAMP_FMT);
-
-        // Step 1: Search / validate
-        sb.append("  [1] Search & Validate request #").append(requestId).append("...\n");
-        ServiceRequest request = indexer.findRequestById(requestId);
-        if (request == null) {
-            return "  ✗ Request #" + requestId + " not found.";
+    public String processScheduledRequests(String mode, int limit) {
+        if (mode == null || mode.trim().isEmpty()) {
+            mode = "fifo";
         }
-        sb.append("      Found: ").append(request.getCategory())
-                .append(" | Urgency=").append(request.getUrgency())
-                .append(" | Status=").append(request.getStatus()).append("\n");
-        logAudit(AuditEvent.EventType.REQUEST_CREATED, requestId, ts, "Request validated");
+        mode = mode.toLowerCase().trim();
 
-        // Step 2: Schedule
-        sb.append("  [2] Scheduling (priority queue)...\n");
-        scheduler.scheduleByPriority(request, request.getUrgency());
-        ServiceRequest next = scheduler.getNextPriorityRequest();
-        sb.append("      Dispatched: #").append(next != null ? next.getRequestId() : "none").append("\n");
+        if (!mode.equals("fifo")
+                && !mode.equals("priority")
+                && !mode.equals("urgent")
+                && !mode.equals("circular")) {
 
-        // Step 3: Allocate resource
-        sb.append("  [3] Allocating resource...\n");
-        Resource resource = null;
-        DynamicArray<Resource> resources = dataLoader.getResources();
-        for (int i = 0; i < resources.size(); i++) {
-            if ("AVAILABLE".equals(resources.get(i).getAvailabilityStatus())) {
-                resource = resources.get(i);
+            return "  Invalid scheduling mode: " + mode;
+        }
+
+        DynamicArray<ServiceRequest> all =
+                dataLoader.getServiceRequests();
+
+        if (all == null || all.isEmpty()) {
+            return "  No service requests loaded.";
+        }
+
+        // Step 1: Schedule pending requests
+        int scheduled = scheduleRequests(mode, limit);
+
+        if (scheduled == 0) {
+            return "  No pending requests available for scheduling.";
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("  ==================================================\n");
+        sb.append("   SERVICE OPERATIONS WORKFLOW\n");
+        sb.append("  ==================================================\n");
+        sb.append("  Scheduling mode : ")
+                .append(mode.toUpperCase())
+                .append("\n");
+        sb.append("  Requests queued : ")
+                .append(scheduled)
+                .append("\n\n");
+
+        // Step 2: Process requests one by one
+        int processed = 0;
+
+        while (processed < scheduled) {
+            ServiceRequest request = dispatchNext(mode);
+            if (request == null) {
                 break;
             }
-        }
-        if (resource == null) {
-            sb.append("      ✗ No available resources.\n");
-        } else {
-            scheduler.assignResource(request, resource);
-            sb.append("      Assigned: ").append(resource.getType())
-                    .append(" (ID=").append(resource.getResourceId()).append(")\n");
-            logAudit(AuditEvent.EventType.RESOURCE_ALLOCATED, requestId, ts,
-                    "Resource " + resource.getResourceId() + " assigned");
+            sb.append(processOneRequest(request));
+            sb.append("\n");
+            processed++;
         }
 
-        // Step 4: Find route
-        sb.append("  [4] Finding route...\n");
-        try {
-            requireRouter();
-            String route = findShortestRoute(request.getSource(), request.getDestination());
-            sb.append(route.replace("  ", "      ")).append("\n");
-        } catch (Exception e) {
-            sb.append("      Route: (source=").append(request.getSource())
-                    .append(" → dest=").append(request.getDestination()).append(")\n");
-        }
-
-        // Step 5: Mark complete and log
-        sb.append("  [5] Completing & logging...\n");
-        request.setStatus("IN_PROGRESS");
-        logAudit(AuditEvent.EventType.REQUEST_ASSIGNED, requestId, ts, "Request set to IN_PROGRESS");
-        sb.append("      Status updated. Audit event logged.\n");
+        sb.append("  ==================================================\n");
+        sb.append("  Workflow finished.\n");
+        sb.append("  Requests processed: ")
+                .append(processed)
+                .append("\n");
+        sb.append("  ==================================================\n");
 
         return sb.toString();
+    }
+
+
+    /**
+     * Processes ONE request after it has been dispatched by the scheduler.
+     */
+    private String processOneRequest(ServiceRequest request) {
+
+        StringBuilder sb = new StringBuilder();
+
+        String ts = LocalDateTime.now().format(TIMESTAMP_FMT);
+
+        sb.append("  --------------------------------------------------\n");
+        sb.append("  Processing Request #")
+                .append(request.getRequestId())
+                .append("\n");
+        sb.append("  Category       : ")
+                .append(request.getCategory())
+                .append("\n");
+        sb.append("  Urgency        : ")
+                .append(request.getUrgency())
+                .append("\n");
+        sb.append("  Source         : ")
+                .append(request.getSource())
+                .append("\n");
+        sb.append("  Destination    : ")
+                .append(request.getDestination())
+                .append("\n");
+
+        // STEP 1: Request has been dispatched
+        request.setStatus("SCHEDULED");
+
+        sb.append("\n  [1] Request dispatched by scheduler.\n");
+
+        logAudit(
+                AuditEvent.EventType.REQUEST_ASSIGNED,
+                request.getRequestId(),
+                ts,
+                "Request dispatched using scheduling queue"
+        );
+
+        // STEP 2: Find matching resource
+        Resource resource = findMatchingAvailableResource(request);
+
+        if (resource == null) {
+
+            sb.append("  [2] No matching resource available.\n");
+            sb.append("      Request remains PENDING.\n");
+
+            request.setStatus("PENDING");
+
+            return sb.toString();
+        }
+
+        sb.append("  [2] Matching resource found.\n");
+        sb.append("      Resource ID : ")
+                .append(resource.getResourceId())
+                .append("\n");
+        sb.append("      Resource   : ")
+                .append(resource.getType())
+                .append("\n");
+        sb.append("      Home       : ")
+                .append(resource.getHomeLocation())
+                .append("\n");
+
+        // STEP 3: Allocate resource
+
+        boolean allocated =
+                scheduler.assignResource(request, resource);
+        if (!allocated) {
+            sb.append("  [3] Resource allocation failed.\n");
+            request.setStatus("PENDING");
+            return sb.toString();
+        }
+        request.setStatus("IN_PROGRESS");
+        sb.append("  [3] Resource allocated successfully.\n");
+        logAudit(
+                AuditEvent.EventType.RESOURCE_ALLOCATED,
+                request.getRequestId(),
+                ts,
+                "Resource " + resource.getResourceId()
+                        + " allocated to request"
+        );
+
+        // STEP 4: Find shortest route
+        sb.append("  [4] Finding shortest route...\n");
+        try {
+            requireRouter();
+
+            // Resource → Request Source
+            DynamicArray<Location> resourceToSource = router.findShortestRoute(resource.getHomeLocation(),
+                    request.getSource());
+
+            int homeToSource = router.findShortestDistance(resource.getHomeLocation(), request.getSource());
+
+            // Request Source → Destination
+
+            DynamicArray<Location> sourceToDestination = router.findShortestRoute(request.getSource(), request.getDestination());
+
+            int sourceToDestinationDistance = router.findShortestDistance(request.getSource(),
+                    request.getDestination());
+
+            // Check whether both routes exist
+            if (homeToSource == Integer.MAX_VALUE) {
+                sb.append("      No route from resource home to source.\n");
+                releaseResource(resource);
+                request.setStatus("PENDING");
+                return sb.toString();
+            }
+
+            if (sourceToDestinationDistance == Integer.MAX_VALUE) {
+                sb.append("      No route from source to destination.\n");
+                releaseResource(resource);
+                request.setStatus("PENDING");
+                return sb.toString();
+            }
+
+            // Display Resource → Source path
+            sb.append("      Resource → Source path:\n");
+            sb.append("        ");
+
+            printRouteNodes(sb, resourceToSource);
+
+            sb.append("\n");
+            sb.append("      Distance: ").append(String.format("%.2f", homeToSource / 100.0)).append(" distance units\n");
+
+            // Display Source → Destination path
+
+            sb.append("      Source → Destination path:\n");
+            sb.append("        ");
+
+            printRouteNodes(sb, sourceToDestination);
+
+            sb.append("\n");
+
+            sb.append("      Distance: ")
+                    .append(String.format(
+                            "%.2f",
+                            sourceToDestinationDistance / 100.0))
+                    .append(" distance units\n");
+
+            sb.append("      ✓ Shortest routes found using Dijkstra.\n");
+
+        } catch (Exception e) {
+
+            sb.append("      Routing error: ")
+                    .append(e.getMessage())
+                    .append("\n");
+
+            releaseResource(resource);
+            request.setStatus("PENDING");
+            return sb.toString();
+        }
+
+        // STEP 5: Complete simulated operation
+
+        request.setStatus("COMPLETED");
+
+        releaseResource(resource);
+
+        sb.append("  [5] Service operation completed.\n");
+        sb.append("      Request status : COMPLETED\n");
+        sb.append("      Resource status: AVAILABLE\n");
+
+        logAudit(
+                AuditEvent.EventType.REQUEST_COMPLETED,
+                request.getRequestId(),
+                ts,
+                "Request completed successfully"
+        );
+
+        return sb.toString();
+    }
+
+
+    /**
+     * Finds an AVAILABLE resource that matches the request category.
+     */
+    private Resource findMatchingAvailableResource(
+            ServiceRequest request) {
+        DynamicArray<Resource> resources = dataLoader.getResources();
+        if (resources == null || resources.isEmpty()) {
+            return null;
+        }
+        String requiredType = request.getCategory() == null ? "" : request.getCategory().trim().toUpperCase();
+        for (int i = 0; i < resources.size(); i++) {
+            Resource resource = resources.get(i);
+            if (resource == null) {
+                continue;
+            }
+            // Only AVAILABLE resources can be allocated.
+            if (!"AVAILABLE".equalsIgnoreCase(
+                    resource.getAvailabilityStatus())) {
+                continue;
+            }
+
+            String resourceType = resource.getType() == null ? "" : resource.getType().trim().toUpperCase();
+            String baseType = resourceType;
+            int underscoreIndex = resourceType.indexOf('_');
+
+            if (underscoreIndex > 0) {
+                baseType =
+                        resourceType.substring(0, underscoreIndex);
+            }
+
+            // Match request category with resource base type.
+            if (baseType.equals(requiredType)) {
+                return resource;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Finds every AVAILABLE resource whose base type is compatible with at
+     * least one of the given pending requests' categories. Used by the
+     * outer resource-scan in optimizeResourceAllocation so that WHICH
+     * resource to use becomes an optimized decision instead of "whichever
+     * one we happened to find first".
+     *
+     * Uses the same base-type-before-underscore matching as
+     * findMatchingAvailableResource for consistency. It does not cover
+     * OptimizationService's private extra special-case mappings (e.g. a
+     * GENERATOR also being allowed to serve ELECTRICAL requests), so in
+     * rare edge cases a resource OptimizationService would still accept
+     * might not show up in this scan. Worth noting as a known limitation
+     * if it comes up during the oral defense.
+     */
+    private DynamicArray<Resource> findCompatibleAvailableResources(
+            DynamicArray<ServiceRequest> pendingRequests) {
+
+        DynamicArray<Resource> candidates = new DynamicArray<>();
+        DynamicArray<Resource> resources = dataLoader.getResources();
+        if (resources == null) {
+            return candidates;
+        }
+
+        for (int i = 0; i < resources.size(); i++) {
+            Resource resource = resources.get(i);
+            if (resource == null) {
+                continue;
+            }
+            if (!"AVAILABLE".equalsIgnoreCase(resource.getAvailabilityStatus())) {
+                continue;
+            }
+
+            String resourceType = resource.getType() == null ? "" : resource.getType().trim().toUpperCase();
+            String baseType = resourceType.contains("_")
+                    ? resourceType.substring(0, resourceType.indexOf('_'))
+                    : resourceType;
+
+            for (int j = 0; j < pendingRequests.size(); j++) {
+                String category = pendingRequests.get(j).getCategory();
+                if (category != null && baseType.equals(category.trim().toUpperCase())) {
+                    candidates.add(resource);
+                    break;
+                }
+            }
+        }
+        return candidates;
+    }
+
+    /**
+     * Sums the Knapsack "value" of a batch of selected requests
+     */
+    private int totalValue(DynamicArray<ServiceRequest> selected) {
+        int total = 0;
+        for (int i = 0; i < selected.size(); i++) {
+            total += Math.max(1, 6 - selected.get(i).getUrgency());
+        }
+        return total;
+    }
+
+    /**
+     * Releases a resource after the simulated service operation.
+     */
+    private void releaseResource(Resource resource) {
+        if (resource != null) {
+            resource.setAvailabilityStatus("AVAILABLE");
+        }
     }
 
     // =========================================================================
     //  Private helpers
     // =========================================================================
+
+    private void printRouteNodes(StringBuilder sb, DynamicArray<Location> path) {
+        if (path == null || path.isEmpty()) {
+            sb.append("No path");
+            return;
+        }
+        for (int i = 0; i < path.size(); i++) {
+            Location location = path.get(i);
+            if (location == null) {
+                continue;
+            }
+            sb.append(location.getName()).append(" [").append(location.getLocationId()).append("]");
+            if (i < path.size() - 1) {
+                sb.append(" → ");
+            }
+        }
+    }
 
     private void requireRouter() {
         if (router == null) {

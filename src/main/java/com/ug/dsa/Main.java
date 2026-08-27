@@ -42,7 +42,7 @@ public class Main {
         boolean running = true;
         while (running) {
             printMenu();
-            int choice = readInt("Enter choice: ", 0, 10);
+            int choice = readInt("Enter choice: ", 0, 11);
             System.out.println();
             switch (choice) {
                 case 1:  menuLoadData();              break;
@@ -55,6 +55,7 @@ public class Main {
                 case 8:  menuRunPerformanceTest();    break;
                 case 9:  menuViewAlgorithmRuns();     break;
                 case 10: menuViewAuditEvents();       break;
+                case 11: menuTestSchedulingAlgorithms(); break;
                 case 0:
                     System.out.println(GREEN + "  Goodbye!" + RESET);
                     running = false;
@@ -145,46 +146,42 @@ public class Main {
         printDivider(120);
     }
 
-    /** Option 4 – Schedule Requests */
+    /** Option 4 – Schedule and Process Service Requests */
     private static void menuScheduleRequests() {
-        sectionHeader("4. Schedule Requests");
-        if (!requireData()) return;
-
-        System.out.println("  Queue modes:");
+        sectionHeader("4. Schedule & Process Service Requests");
+        if (!requireData()) {
+            return;
+        }
+        System.out.println("  Scheduling methods:");
         System.out.println("    [1] FIFO Queue          – First-Come, First-Served");
-        System.out.println("    [2] Priority Min-Heap   – Sorted by urgency (1=highest)");
-        System.out.println("    [3] Deque / Urgent      – Urgent requests jump to the front");
-        System.out.println("    [4] Circular Queue      – Fixed-capacity buffer (cap=100)");
-        int opt = readInt("  Choose mode (1-4): ", 1, 4);
-
-        String[] modes  = {"fifo", "priority", "urgent", "circular"};
-        String[] labels = {"FIFO", "Priority Heap", "Deque/Urgent", "Circular Queue"};
+        System.out.println("    [2] Priority Min-Heap   – Highest urgency first");
+        System.out.println("    [3] Deque / Urgent      – Urgent requests first");
+        System.out.println("    [4] Circular Queue      – Fixed-capacity buffer");
+        int opt = readInt(
+                "  Choose scheduling method (1-4): ", 1, 4);
+        String[] modes = {
+                "fifo",
+                "priority",
+                "urgent",
+                "circular"
+        };
+        String[] labels = {
+                "FIFO",
+                "Priority Heap",
+                "Deque / Urgent",
+                "Circular Queue"
+        };
         String mode = modes[opt - 1];
 
-        int limit = readInt("  Max requests to schedule (0 = all pending): ", 0, 300);
-        int scheduled = engine.scheduleRequests(mode, limit);
+        int limit = readInt(
+                "  Number of requests to process (1-300): ", 1, 300
+        );
         System.out.println();
-        System.out.printf(GREEN + "  ✓ Scheduled %d request(s) into %s.%n" + RESET, scheduled, labels[opt - 1]);
-
-        // Show state
-        System.out.printf("  Queue sizes after scheduling:%n");
-        System.out.printf("    FIFO Queue    : %d%n", engine.getScheduler().getFifoQueueSize());
-        System.out.printf("    Priority Heap : %d%n", engine.getScheduler().getPriorityHeapSize());
-        System.out.printf("    Deque (urgent): %d%n", engine.getScheduler().getDequeSize());
-        System.out.printf("    Circular Queue: %d%n", engine.getScheduler().getCircularQueueSize());
-        System.out.println();
-
-        // Dispatch a few to show in action
-        int dispatch = readInt("  Dispatch how many requests now? (0 to skip): ", 0, 9999);
-        if (dispatch > 0) {
-            System.out.println();
-            printRequestTableHeader();
-            for (int i = 0; i < dispatch; i++) {
-                ServiceRequest r = engine.dispatchNext(mode);
-                if (r == null) { System.out.println("  Queue empty."); break; }
-                printRequestRow(r);
-            }
-            printDivider(120);
+        try {
+            String result = engine.processScheduledRequests(mode, limit);
+            System.out.println(result);
+        } catch (Exception e) {
+            System.out.println(RED + "  Error: " + e.getMessage() + RESET);
         }
     }
 
@@ -324,6 +321,71 @@ public class Main {
         }
     }
 
+    /**
+     * Option 11 – Test individual scheduling data structures.
+     */
+    private static void menuTestSchedulingAlgorithms() {
+        sectionHeader("11. Test Scheduling Algorithms");
+        if (!requireData()) return;
+        System.out.println("  This option independently tests the scheduling data structures.");
+        System.out.println("  It does not perform resource allocation or routing.\n");
+
+        System.out.println("    [1] FIFO Queue");
+        System.out.println("    [2] Priority Min-Heap");
+        System.out.println("    [3] Urgent Deque");
+        System.out.println("    [4] Circular Queue");
+
+        int opt = readInt("  Choose algorithm (1-4): ", 1, 4);
+
+        int limit = readInt(
+                "  Number of pending requests to load (1-100): ",
+                1,
+                100
+        );
+
+        String mode;
+
+        switch (opt) {
+            case 1:
+                mode = "fifo";
+                break;
+            case 2:
+                mode = "priority";
+                break;
+            case 3:
+                mode = "urgent";
+                break;
+            default:
+                mode = "circular";
+                break;
+        }
+
+        System.out.println();
+        System.out.println("  Loading pending requests into "
+                + mode.toUpperCase() + "...\n");
+
+        int scheduled = engine.scheduleRequests(mode, limit);
+
+        System.out.println(
+                GREEN + "  ✓ Loaded " + scheduled
+                        + " request(s)." + RESET
+        );
+
+        System.out.println("\n  Dispatch order:");
+        printRequestTableHeader();
+
+        for (int i = 0; i < scheduled; i++) {
+            ServiceRequest request = engine.dispatchNext(mode);
+            if (request == null) {
+                break;
+            }
+            printRequestRow(request);
+        }
+        printDivider(120);
+
+        System.out.println("\n  Queue test completed.");
+    }
+
     // =========================================================================
     //  UI helpers
     // =========================================================================
@@ -351,6 +413,7 @@ public class Main {
         System.out.println("  8.  Run Algorithm Performance Test");
         System.out.println("  9.  View Algorithm Runs");
         System.out.println("  10. View Audit Events");
+        System.out.println("  11. Test Scheduling Algorithms");
         System.out.println(RED + "  0.  Exit" + RESET);
         System.out.println(BLUE + "  ─────────────────────────────────────────" + RESET);
     }
